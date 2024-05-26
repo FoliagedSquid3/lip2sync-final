@@ -88,8 +88,8 @@ async def fetch_job_details(job_id: int):
             job = response.json()
             avatar_img = job.get('avatar_img', '')
             questions = job.get('questions', [])
-            formatted_questions = " <break time='5000ms'/> ".join(questions) if questions else None
-            return avatar_img, formatted_questions
+            # Ensure the entire questions are joined as whole strings
+            return avatar_img, questions
         except httpx.HTTPError as e:
             raise HTTPException(status_code=e.response.status_code, detail=str(e))
         except Exception as e:
@@ -97,10 +97,10 @@ async def fetch_job_details(job_id: int):
 
 @router.get("/jobs/{job_id}")
 async def get_job_details_endpoint(job_id: int):
-    avatar_img, formatted_questions = await fetch_job_details(job_id)
-    if not formatted_questions:
+    avatar_img, questions = await fetch_job_details(job_id)
+    if not questions:
         return {"message": "No questions found for this job", "avatar_img": avatar_img}
-    return {"avatar_img": avatar_img, "questions": formatted_questions}
+    return {"avatar_img": avatar_img, "questions": questions}
 
 
 @router.get("/jobs/{job_id}/process_complete")
