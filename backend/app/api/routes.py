@@ -134,9 +134,8 @@ async def process_complete_job(job_id: int):
             print('image path',image_path)
             convert_to_png(image, image_path)
         else:
-            return {"error": "Failed to download or process avatar image"}
-
-
+            return {"error": "Failed to download or process avatarimage"}
+        
     # Generate speech
     audio_path = generate_speech(formatted_questions.split(" <break time='5000ms'/> "), job_id)  # Assuming this needs the list of questions
     # Generate video
