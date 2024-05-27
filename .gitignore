@@ -4,3 +4,8 @@ backend/app/api/__pycache__
 backend/app/lip2sync.db
 .env
 backend/SadTalker
+audio
+images
+recordings
+video
+backend/app/gfpgan/weights

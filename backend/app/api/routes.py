@@ -10,13 +10,14 @@ from pathlib import Path
 import openai
 from openai._client import OpenAI
 import subprocess
+import sys
 
 load_dotenv()
 
 router = APIRouter()
 job_api=os.getenv('JOB_API')
 openai_key=os.getenv('OPENAI_KEY')
-output_audio_dir=os.getenv('OUTPUT_AUDIO')
+output_audio_dir=os.getenv('AUDIO_OUTPUT')
 result_dir=os.getenv('VIDEO_OUTPUT')
 images_dir=os.getenv('IMAGES_DIR')
 def download_image(image_url):
@@ -58,27 +59,42 @@ def generate_speech(questions_text, job_id):
     # Save the audio file
     os.makedirs(output_dir, exist_ok=True)
     response.stream_to_file(wav_path)
-    print(f"Audio file saved to {wav_path}")
 
     return wav_path
 
 
-def execute_script(audio_path, img, result_dir,job_id):
+def execute_script(audio_path, img_path, result_dir, job_id):
+    # Construct the full path to the inference script
+    script_dir = os.path.abspath(os.path.dirname(__file__))  # Get the directory of the current script
+    inference_script_path = os.path.join(script_dir, '..', '..', 'SadTalker', 'inference.py')
+
+    if not os.path.exists(inference_script_path):
+        raise FileNotFoundError(f"The specified script does not exist: {inference_script_path}")
+
+    # Ensure the output directory exists
     video_output_path = os.path.join(result_dir, f"{job_id}.mp4")
+    os.makedirs(os.path.dirname(video_output_path), exist_ok=True)
+
+    # Build the command
     command = [
-        "python3.8", "inference.py",
+        sys.executable, inference_script_path,
         "--driven_audio", audio_path,
-        "--ref_pose", "./examples/ref_video/WDA_KatieHill_000.mp4",
-        "--ref_eyeblink", "./examples/ref_video/WDA_KatieHill_000.mp4",
-        "--source_image", img,
+        "--ref_pose", os.path.abspath(os.path.join(script_dir, '..', 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
+        "--ref_eyeblink", os.path.abspath(os.path.join(script_dir, '..', 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
+        "--source_image", img_path,
         "--result_dir", video_output_path,
         "--still", "--preprocess", "full", "--enhancer", "gfpgan"
     ]
+
+    print("Running command:", " ".join(command))  # Print the command to check correctness
+
     try:
         subprocess.run(command, check=True)
         print("Script execution successful.")
     except subprocess.CalledProcessError as e:
         print(f"Script execution failed: {e}")
+    except FileNotFoundError as e:
+        print(f"Failed to execute script, file not found: {e}")
 
 async def fetch_job_details(job_id: int):
     async with httpx.AsyncClient() as client:
@@ -115,13 +131,13 @@ async def process_complete_job(job_id: int):
         image = download_image(avatar_img)
         if image:
             image_path = os.path.join(images_dir, f"{job_id}.png")  # Use os.path.join for building paths
+            print('image path',image_path)
             convert_to_png(image, image_path)
         else:
             return {"error": "Failed to download or process avatar image"}
 
     # Generate speech
     audio_path = generate_speech(formatted_questions.split(" <break time='5000ms'/> "), job_id)  # Assuming this needs the list of questions
-
     # Generate video
     execute_script(audio_path, image_path, result_dir, job_id)
 
