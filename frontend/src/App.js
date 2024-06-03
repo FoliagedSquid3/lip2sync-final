@@ -88,7 +88,15 @@ function App() {
 
   const handleMeetingEnd = () => {
     setMeetingEnded(true);
-  };
+    setIsRecording(false); // Stop recording
+
+    // Ensure all tracks are stopped
+    if (stream) {
+        const tracks = stream.getTracks();
+        tracks.forEach(track => track.stop());
+    }
+};
+
 
   const icon = theme === 'light' ? '🌙' : '☀️';
 

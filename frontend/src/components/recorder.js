@@ -34,6 +34,7 @@ const Recorder = ({ onRecordingStart, onRecordingStop, userName, jobId }) => {
 
         getMedia();
 
+        // Cleanup function to stop media tracks when the component unmounts
         return () => {
             if (mediaRecorderRef.current) {
                 mediaRecorderRef.current.stopRecording(() => {
@@ -43,19 +44,25 @@ const Recorder = ({ onRecordingStart, onRecordingStop, userName, jobId }) => {
                     }
                 });
             }
+            // Additional cleanup for any case where the component might unmount before stopping
+            if (videoRef.current && videoRef.current.srcObject) {
+                const tracks = videoRef.current.srcObject.getTracks();
+                tracks.forEach(track => track.stop());
+                videoRef.current.srcObject = null;
+            }
         };
     }, []);
 
     const stopRecording = () => {
         if (mediaRecorderRef.current && recording) {
-            // Stop the media tracks to close the camera immediately
-            if (videoRef.current && videoRef.current.srcObject) {
-                videoRef.current.srcObject.getTracks().forEach(track => track.stop());
-                videoRef.current.srcObject = null;
-            }
-
             mediaRecorderRef.current.stopRecording(() => {
                 const blob = mediaRecorderRef.current.getBlob();
+                // Stop the media tracks to close the camera immediately
+                if (videoRef.current && videoRef.current.srcObject) {
+                    const tracks = videoRef.current.srcObject.getTracks();
+                    tracks.forEach(track => track.stop());
+                    videoRef.current.srcObject = null;
+                }
                 // Immediately show the notification and change the recording state
                 onRecordingStop();
                 setRecording(false);
