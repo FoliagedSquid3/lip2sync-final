@@ -21,20 +21,18 @@ async def upload_video(file: UploadFile = File(...), job_id: int = Form(...), us
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         original_filename = file.filename
         filename = f"{timestamp}_job{job_id}_user{user_name}_{original_filename}"
-
         # Save the file with the new unique filename
         file_location = os.path.join(RECORDING_DIR, filename)
         with open(file_location, "wb+") as file_object:
             file_object.write(await file.read())
 
-        # Convert to MP4
+        # Convert to MP4 and overwrite the original file
         output_filename = file_location.replace('.webm', '.mp4')
-        (
-            ffmpeg
-            .input(file_location)
-            .output(output_filename)
-            .run()
-        )
+        try:
+            ffmpeg.input(file_location).output(output_filename, vcodec='libx264', acodec='aac', strict='experimental').run(overwrite_output=True)
+            os.remove(file_location)  # Remove the original .webm file after conversion
+        except Exception as e:
+            print('Error converting file:', e)
 
         # Save details to the database
         query = jobs.insert().values(
@@ -44,7 +42,7 @@ async def upload_video(file: UploadFile = File(...), job_id: int = Form(...), us
         )
         await database.execute(query)
 
-        return JSONResponse(content={"message": "File converted successfully and saved to database", "file_path": output_filename}, status_code=200)
+        return JSONResponse(content={"message": "File converted and saved successfully", "file_path": output_filename}, status_code=200)
 
     except Exception as e:
         return JSONResponse(content={"message": str(e)}, status_code=500)

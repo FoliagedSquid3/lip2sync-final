@@ -9,6 +9,8 @@ const Recorder = ({ onRecordingStart, onRecordingStop, userName, jobId }) => {
 
     useEffect(() => {
         async function getMedia() {
+            if (!videoRef.current) return; // Ensures videoRef is available
+
             try {
                 const constraints = { video: true, audio: true };
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -19,8 +21,8 @@ const Recorder = ({ onRecordingStart, onRecordingStop, userName, jobId }) => {
                 // Initialize RecordRTC
                 const recorder = new RecordRTC(stream, {
                     type: 'video',
-                    mimeType: 'video/webm; codecs=vp9', // ensuring the mimeType matches support
-                    bitsPerSecond: 128000 // Adjust bitrate as needed
+                    mimeType: 'video/webm; codecs=vp9',
+                    bitsPerSecond: 128000
                 });
                 recorder.startRecording();
                 mediaRecorderRef.current = recorder;
@@ -35,7 +37,10 @@ const Recorder = ({ onRecordingStart, onRecordingStop, userName, jobId }) => {
         return () => {
             if (mediaRecorderRef.current) {
                 mediaRecorderRef.current.stopRecording(() => {
-                    videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+                    if (videoRef.current && videoRef.current.srcObject) {
+                        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+                        videoRef.current.srcObject = null;
+                    }
                 });
             }
         };
@@ -44,19 +49,17 @@ const Recorder = ({ onRecordingStart, onRecordingStop, userName, jobId }) => {
     const stopRecording = () => {
         if (mediaRecorderRef.current && recording) {
             // Stop the media tracks to close the camera immediately
-            if (videoRef.current.srcObject) {
+            if (videoRef.current && videoRef.current.srcObject) {
                 videoRef.current.srcObject.getTracks().forEach(track => track.stop());
                 videoRef.current.srcObject = null;
             }
 
-            // Immediately show the notification and change the recording state
-            onRecordingStop();
-            setRecording(false);
-            setShowNotification(true); // Show notification that meeting has ended
-
-            // Stop recording and process the upload in the background
             mediaRecorderRef.current.stopRecording(() => {
                 const blob = mediaRecorderRef.current.getBlob();
+                // Immediately show the notification and change the recording state
+                onRecordingStop();
+                setRecording(false);
+                setShowNotification(true); // Show notification that meeting has ended
                 uploadVideo(blob);
             });
         }
@@ -73,6 +76,7 @@ const Recorder = ({ onRecordingStart, onRecordingStop, userName, jobId }) => {
                 method: 'POST',
                 body: formData,
             });
+            if (!response.ok) throw new Error('Upload failed with status: ' + response.status);
             const data = await response.json();
             console.log('File uploaded and converted:', data);
         } catch (error) {
