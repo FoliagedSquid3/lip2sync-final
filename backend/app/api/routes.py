@@ -11,6 +11,9 @@ import openai
 from openai._client import OpenAI
 import subprocess
 import sys
+from gtts import gTTS
+from deepface import DeepFace
+from pydub import AudioSegment
 
 load_dotenv()
 
@@ -20,6 +23,7 @@ openai_key=os.getenv('OPENAI_KEY')
 output_audio_dir=os.getenv('AUDIO_OUTPUT')
 result_dir=os.getenv('VIDEO_OUTPUT')
 images_dir=os.getenv('IMAGES_DIR')
+
 def download_image(image_url):
     try:
         response = requests.get(image_url)
@@ -29,10 +33,24 @@ def download_image(image_url):
         print(f"Failed to download image from {image_url}, error: {e}")
         return None
 
+def detect_gender_from_image(image):
+    if image is None:
+        return "Image download failed, cannot detect gender."
+
+    # Analyze the image to predict the gender
+    try:
+        result = DeepFace.analyze(img_path=image, actions=['gender'])
+        dominant_gender = result[0]['dominant_gender']
+        return dominant_gender
+    
+    except Exception as e:
+        print(f"Failed to detect gender, error: {e}")
+        return "Gender detection failed."
+
+
 def convert_to_png(image: Image.Image, output_path):
     if image:
         image.convert("RGBA").save(output_path, "PNG")
-        print(f"Saved image as {output_path}")
         return output_path
     else:
         return None
@@ -43,32 +61,25 @@ def generate_speech(questions_text, job_id):
     wav_path = os.path.join(output_dir, filename)
     
     text_needed = " <break time='5000ms'/> ".join(questions_text)  # Adjust breaks as necessary for speech pauses
-    api_key = openai_key
-    if not api_key:
-        raise ValueError("OpenAI API key is not set in environment variables.")
-    
-    client = OpenAI(api_key=api_key)
-
-    # Create the OpenAI client and generate speech
-    response = client.audio.speech.create(
-        model="tts-1",
-        voice="alloy",  # Possible values: alloy, echo, fable, onyx, nova, and shimmer
-        input=text_needed
-    )
-
-    # Save the audio file
+    tts = gTTS(text=text_needed, lang='en')
     os.makedirs(output_dir, exist_ok=True)
-    response.stream_to_file(wav_path)
+    tts.save(wav_path)
 
     return wav_path
 
+def change_pitch(audio_path, semitones):
+    audio = AudioSegment.from_file(audio_path)
+    new_sample_rate = int(audio.frame_rate * (2.0 ** (semitones / 12.0)))
+    changed_audio = audio._spawn(audio.raw_data, overrides={'frame_rate': new_sample_rate}).set_frame_rate(44100)
+    changed_audio.export(audio_path, format="wav")  # Overwrite the original file with modified pitch
+    return audio_path 
 
 def execute_script(audio_path, img_path, result_dir, job_id):
     # Construct the full path to the inference script
-    script_dir = os.path.abspath(os.path.dirname(__file__))  # Get the directory of the current script
-    inference_script_path = os.path.join(script_dir, '..', '..', 'SadTalker', 'inference.py')
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    inference_script_path = os.path.join(script_dir, 'SadTalker', 'inference.py')
 
-    if not os.path.exists(inference_script_path):
+    if not os.path.exists( inference_script_path):
         raise FileNotFoundError(f"The specified script does not exist: {inference_script_path}")
 
     # Ensure the output directory exists
@@ -85,8 +96,6 @@ def execute_script(audio_path, img_path, result_dir, job_id):
         "--result_dir", video_output_path,
         "--still", "--preprocess", "full", "--enhancer", "gfpgan"
     ]
-
-    print("Running command:", " ".join(command))  # Print the command to check correctness
 
     try:
         subprocess.run(command, check=True)
@@ -131,13 +140,17 @@ async def process_complete_job(job_id: int):
         image = download_image(avatar_img)
         if image:
             image_path = os.path.join(images_dir, f"{job_id}.png")  # Use os.path.join for building paths
-            print('image path',image_path)
             convert_to_png(image, image_path)
+            gender=detect_gender_from_image(image_path)
         else:
             return {"error": "Failed to download or process avatarimage"}
         
     # Generate speech
-    audio_path = generate_speech(formatted_questions.split(" <break time='5000ms'/> "), job_id)  # Assuming this needs the list of questions
+    if gender=="Man":
+        audio_path = generate_speech(formatted_questions.split(" <break time='5000ms'/> "), job_id)  # Assuming this needs the list of questions
+        audio_path = change_pitch(audio_path, -4) 
+    else:
+        audio_path = generate_speech(formatted_questions.split(" <break time='5000ms'/> "), job_id)  # Assuming this needs the list of questions
     # Generate video
     execute_script(audio_path, image_path, result_dir, job_id)
 

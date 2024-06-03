@@ -3,7 +3,7 @@ backend/app/__pycache__
 backend/app/api/__pycache__
 backend/app/lip2sync.db
 .env
-backend/SadTalker
+backend/app/api/SadTalker
 audio
 images
 recordings
