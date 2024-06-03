@@ -9,60 +9,70 @@ const VideoContainer = styled.div`
 
 const Video = ({ url }) => {
   const videoRef = useRef(null);
-  const [recognition, setRecognition] = useState(null);
-  const [speechTimeout, setSpeechTimeout] = useState(null);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const requestRef = useRef(null);
+  const lastActionRef = useRef(null); // Ref to store last action timestamp
 
   useEffect(() => {
-    // Setup Speech Recognition
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      let recognizer = new SpeechRecognition();
-      recognizer.continuous = true; // Listen continuously
-      recognizer.interimResults = false; // Only report final results
+    const setupAudioProcessing = async () => {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
 
-      recognizer.onstart = () => {
-        console.log('Speech recognition service started.');
-      };
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const source = audioContext.createMediaStreamSource(stream);
+      source.connect(analyser);
 
-      recognizer.onspeechstart = () => {
-        console.log('Speech detected.');
-        clearTimeout(speechTimeout); // Clear any existing timeout
-        setSpeechTimeout(setTimeout(() => {
-          console.log('Pausing video due to speech.');
-          if (videoRef.current && !videoRef.current.paused) {
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+      mediaStreamRef.current = stream;
+
+      const checkAudio = () => {
+        analyser.getByteFrequencyData(dataArray);
+        const sum = dataArray.reduce((acc, val) => acc + val, 0);
+        const average = sum / bufferLength;
+        
+        //console.log('Current audio level:', average); // Log the current audio level
+
+        const now = Date.now();
+        const actionDelay = 1000; // 1000 ms delay between actions to prevent rapid toggling
+
+        if (average > 50) { // Sensitivity threshold
+          if (videoRef.current && !videoRef.current.paused && (!lastActionRef.current || now - lastActionRef.current > actionDelay)) {
+            console.log('Pausing video due to detected audio level.');
             videoRef.current.pause();
+            lastActionRef.current = now;
           }
-        }, 100)); // Wait for 300 ms of continuous speech before pausing
-      };
-
-      recognizer.onspeechend = () => {
-        console.log('Speech ended.');
-        clearTimeout(speechTimeout); // Clear speech start timeout
-        setSpeechTimeout(setTimeout(() => {
-          console.log('Resuming video after speech ended.');
-          if (videoRef.current && videoRef.current.paused) {
-            videoRef.current.play();
+        } else {
+          if (videoRef.current && videoRef.current.paused && (!lastActionRef.current || now - lastActionRef.current > actionDelay)) {
+            console.log('Resuming video as audio level is low.');
+            videoRef.current.play().catch(e => console.log('Error playing video:', e));
+            lastActionRef.current = now;
           }
-        }, 100)); // Reduce timeout to 100 ms after speech has ended to resume
+        }
+
+        requestRef.current = requestAnimationFrame(checkAudio);
       };
 
-      recognizer.onerror = (event) => {
-        console.error('Speech Recognition Error:', event.error);
-      };
+      checkAudio();
+    };
 
-      setRecognition(recognizer);
-      recognizer.start();
-    } else {
-      console.warn('Speech Recognition API is not supported in this browser.');
-    }
+    setupAudioProcessing();
 
     return () => {
-      // Clean up: stop recognition and release media
-      if (recognition) {
-        recognition.stop();
-        console.log('Speech recognition service stopped.');
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current);
       }
-      clearTimeout(speechTimeout); // Make sure to clear the timeout on cleanup
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
     };
   }, []);
 
