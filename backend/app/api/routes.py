@@ -84,7 +84,7 @@ def execute_script(audio_path, img_path, result_dir, job_id):
 
     # Ensure the output directory exists
     video_output_path = os.path.join(result_dir, f"{job_id}.mp4")
-    os.makedirs(os.path.dirname(video_output_path), exist_ok=True)
+    # os.makedirs(os.path.dirname(video_output_path), exist_ok=True)
 
     # Build the command
     command = [
