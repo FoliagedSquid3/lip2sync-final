@@ -64,7 +64,6 @@ def generate_speech(questions_text, job_id):
     tts = gTTS(text=text_needed, lang='en')
     os.makedirs(output_dir, exist_ok=True)
     tts.save(wav_path)
-
     return wav_path
 
 def change_pitch(audio_path, semitones):
@@ -90,10 +89,11 @@ def execute_script(audio_path, img_path, result_dir, job_id):
     command = [
         sys.executable, inference_script_path,
         "--driven_audio", audio_path,
-        "--ref_pose", os.path.abspath(os.path.join(script_dir, '..', 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
-        "--ref_eyeblink", os.path.abspath(os.path.join(script_dir, '..', 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
+        "--ref_pose", os.path.abspath(os.path.join(script_dir, 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
+        "--ref_eyeblink", os.path.abspath(os.path.join(script_dir, 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
         "--source_image", img_path,
         "--result_dir", video_output_path,
+        "--checkpoint_dir", os.path.abspath(os.path.join(script_dir, 'SadTalker', 'checkpoints'+)),
         "--still", "--preprocess", "full", "--enhancer", "gfpgan"
     ]
 
@@ -144,13 +144,14 @@ async def process_complete_job(job_id: int):
             gender=detect_gender_from_image(image_path)
         else:
             return {"error": "Failed to download or process avatarimage"}
-        
+    
     # Generate speech
     if gender=="Man":
         audio_path = generate_speech(formatted_questions.split(" <break time='5000ms'/> "), job_id)  # Assuming this needs the list of questions
         audio_path = change_pitch(audio_path, -4) 
     else:
         audio_path = generate_speech(formatted_questions.split(" <break time='5000ms'/> "), job_id)  # Assuming this needs the list of questions
+
     # Generate video
     execute_script(audio_path, image_path, result_dir, job_id)
 
