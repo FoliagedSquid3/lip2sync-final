@@ -9,3 +9,5 @@ images
 recordings
 video
 backend/app/gfpgan/weights
+Audio Control React App/node_modules
+backend/app/api/gfpgan/weights/*
