@@ -74,24 +74,25 @@ def change_pitch(audio_path, semitones):
     changed_audio.export(audio_path, format="wav")  # Overwrite the original file with modified pitch
     return audio_path 
 
-def execute_script(audio_path, img_path, result_dir, job_id):
+def execute_script(audio_path, img_path, result_dir, job_id, user_id):
     # Construct the full path to the inference script
     script_dir = os.path.dirname(os.path.abspath(__file__))
     inference_script_path = os.path.join(script_dir, 'SadTalker', 'inference.py')
 
-    if not os.path.exists( inference_script_path):
+    if not os.path.exists(inference_script_path):
         raise FileNotFoundError(f"The specified script does not exist: {inference_script_path}")
 
     # Ensure the output directory exists
-    video_output_path = os.path.join(result_dir, f"{job_id}.mp4")
-    # os.makedirs(os.path.dirname(video_output_path), exist_ok=True)
+    job_output_dir = os.path.join(result_dir, str(job_id))
+    os.makedirs(job_output_dir, exist_ok=True)
+    video_output_path = os.path.join(job_output_dir, f"{user_id}.mp4")
 
     # Build the command
     command = [
         sys.executable, inference_script_path,
         "--driven_audio", audio_path,
-        "--ref_pose", os.path.abspath(os.path.join(script_dir, '..', 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
-        "--ref_eyeblink", os.path.abspath(os.path.join(script_dir, '..', 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
+        "--ref_pose", os.path.abspath(os.path.join(script_dir, 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
+        "--ref_eyeblink", os.path.abspath(os.path.join(script_dir, 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
         "--source_image", img_path,
         "--result_dir", video_output_path,
         "--still", "--preprocess", "full", "--enhancer", "gfpgan"
@@ -105,35 +106,44 @@ def execute_script(audio_path, img_path, result_dir, job_id):
     except FileNotFoundError as e:
         print(f"Failed to execute script, file not found: {e}")
 
-async def fetch_job_details(job_id: int):
+async def fetch_job_details(job_id: int, user_id: int):
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(f"{job_api}/{job_id}")
             response.raise_for_status()
             job = response.json()
+            # This should be the global job avatar, not user-specific
             avatar_img = job.get('avatar_img', '')
+            print("Avatar Image URL:", avatar_img)  # Debug to check the URL
+            applicant_data = next((applicant for applicant in job['applicants'] if applicant['user']['id'] == user_id), None)
+            if not applicant_data:
+                raise HTTPException(status_code=404, detail="Applicant not found")
+            interview_timestamp = applicant_data.get('interview_timestamp')
             questions = job.get('questions', [])
-            # Ensure the entire questions are joined as whole strings
-            return avatar_img, questions
+            return avatar_img, questions, interview_timestamp
         except httpx.HTTPError as e:
             raise HTTPException(status_code=e.response.status_code, detail=str(e))
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@router.get("/jobs/{job_id}")
-async def get_job_details_endpoint(job_id: int):
-    avatar_img, questions = await fetch_job_details(job_id)
+@router.get("/jobs/{job_id}/{user_id}")
+async def get_job_details_endpoint(job_id: int, user_id: int):
+    avatar_img, questions, interview_timestamp = await fetch_job_details(job_id, user_id)
+    print('avatar img',avatar_img)
     if not questions:
         return {"message": "No questions found for this job", "avatar_img": avatar_img}
-    return {"avatar_img": avatar_img, "questions": questions}
+    return {"avatar_img": avatar_img, "questions": questions, "interview_timestamp": interview_timestamp}
 
 
-@router.get("/jobs/{job_id}/process_complete")
-async def process_complete_job(job_id: int):
-    avatar_img, formatted_questions = await fetch_job_details(job_id)
+
+frontend_base_url=os.getenv('FRONTEND_BASE_URL')
+
+@router.get("/jobs/{job_id}/process_complete/{user_id}")
+async def process_complete_job(job_id: int, user_id: int):
+    avatar_img, formatted_questions, interview_timestamp = await fetch_job_details(job_id, user_id)
+    print('avatar img',avatar_img)
     if not formatted_questions:
         return {"message": "No questions found for this job", "avatar_img": avatar_img}
-
     # Continue with additional processing if needed
     # Download and process image
     if avatar_img:
@@ -144,18 +154,17 @@ async def process_complete_job(job_id: int):
             gender=detect_gender_from_image(image_path)
         else:
             return {"error": "Failed to download or process avatarimage"}
-        
     # Generate speech
     if gender=="Man":
         audio_path = generate_speech(formatted_questions.split(" <break time='5000ms'/> "), job_id)  # Assuming this needs the list of questions
-        audio_path = change_pitch(audio_path, -4) 
+        audio_path = change_pitch(audio_path, -4)
     else:
         audio_path = generate_speech(formatted_questions.split(" <break time='5000ms'/> "), job_id)  # Assuming this needs the list of questions
     # Generate video
-    execute_script(audio_path, image_path, result_dir, job_id)
+    execute_script(audio_path, image_path, result_dir, job_id, user_id)
 
     # Assuming the video is now saved in `result_dir`
-    video_url = f"http://yourserver.com/videos/{job_id}.mp4"
+    video_url = f"{frontend_base_url}/videos/{job_id}/{user_id}.mp4"
     return {"video_url": video_url}
 
 
