@@ -6,11 +6,11 @@ import Home from "./pages/Home";
 import VideoControl from "./components/VideoControl";
 import ThankYou from "./components/ThankYou";
 import WebcamStreamCapture from "./components/WebcamStreamCapture";
+import NotFound from "./components/NotFound";
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
       <Route
         path="/video"
         element={
@@ -20,6 +20,7 @@ function App() {
         }
       />
       <Route path="/thankyou" element={<ThankYou />} />
+      <Route path="/" element={<NotFound />} />
     </Routes>
   );
 }

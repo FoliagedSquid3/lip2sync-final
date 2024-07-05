@@ -4,16 +4,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 
 const WebcamStreamCapture = ({ onRecordingComplete }) => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [userName, setUserName] = useState("");
 
-  useEffect(() => {
-    if (location.state && location.state.userName) {
-      setUserName(location.state.userName);
-    } else {
-      navigate("/");
-    }
-  }, [location.state, navigate]);
+
 
   const webcamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -80,7 +72,7 @@ const WebcamStreamCapture = ({ onRecordingComplete }) => {
 
   const handleUploadClick = useCallback(async () => {
     handleStopCaptureClick();
-    
+
     if (recordedChunks.length === 0) {
       console.error("No recorded chunks to upload");
       return;
@@ -93,7 +85,7 @@ const WebcamStreamCapture = ({ onRecordingComplete }) => {
       const formData = new FormData();
       formData.append("file", blob, "recording.webm");
       formData.append("job_id", 2);
-      formData.append("user_name", userName);
+      formData.append("user_name", "Pathan");
 
       const response = await fetch("http://127.0.0.1/upload", {
         method: "POST",
@@ -113,7 +105,7 @@ const WebcamStreamCapture = ({ onRecordingComplete }) => {
     } catch (error) {
       console.error("Error uploading file:", error);
     }
-  }, [recordedChunks, userName, onRecordingComplete, navigate]);
+  }, [recordedChunks, onRecordingComplete, navigate]);
 
   useEffect(() => {
     if (isRecordingComplete && recordedChunks.length > 0) {

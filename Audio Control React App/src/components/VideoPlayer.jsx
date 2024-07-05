@@ -12,6 +12,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd }) => {
   const [isRecordingComplete, setIsRecordingComplete] = useState(false);
   const mediaRecorderRef = useRef(null);
   const navigate = useNavigate();
+  const video_path = "/video/1/1.mp4"
 
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -98,7 +99,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd }) => {
 
   const handleUploadClick = useCallback(async () => {
     handleStopCaptureClick();
-    
+
     if (recordedChunks.length === 0) {
       console.error("No recorded chunks to upload");
       return;

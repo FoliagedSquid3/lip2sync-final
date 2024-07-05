@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException,Depends, status
+from fastapi import APIRouter, HTTPException,Depends, status, Request
+from fastapi.responses import FileResponse
 from typing import Any
 import httpx
 import os
@@ -11,9 +12,15 @@ import openai
 from openai._client import OpenAI
 import subprocess
 import sys
+import traceback
 from gtts import gTTS
-from deepface import DeepFace
+# from deepface import DeepFace
 from pydub import AudioSegment
+from pydantic import BaseModel
+
+class SendVideo(BaseModel):
+    user_id: int | str
+    job_id: int | str
 
 load_dotenv()
 
@@ -39,9 +46,10 @@ def detect_gender_from_image(image):
 
     # Analyze the image to predict the gender
     try:
-        result = DeepFace.analyze(img_path=image, actions=['gender'])
-        dominant_gender = result[0]['dominant_gender']
-        return dominant_gender
+        return "Man"
+        # result = DeepFace.analyze(img_path=image, actions=['gender'])
+        # dominant_gender = result[0]['dominant_gender']
+        # return dominant_gender
     
     except Exception as e:
         print(f"Failed to detect gender, error: {e}")
@@ -167,5 +175,14 @@ async def process_complete_job(job_id: int, user_id: int):
     video_url = f"{frontend_base_url}/videos/{job_id}/{user_id}.mp4"
     return {"video_url": video_url}
 
-
-
+@router.post("/send_video")
+async def send_vide(request: SendVideo):
+    try:
+        job_id = str(request.job_id)
+        user_id = str(request.user_id) + ".mp4"
+        video_path = os.path.join(result_dir, job_id, user_id)
+        print(video_path)
+        return  FileResponse(video_path)
+    except:
+        traceback.print_exc()
+        return None

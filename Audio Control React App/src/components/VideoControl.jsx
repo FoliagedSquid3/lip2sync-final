@@ -1,20 +1,39 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import VideoPlayer from "./VideoPlayer";
 import AudioCapture from "./AudioCapture";
 
+function joinPaths(...paths) {
+  return paths.map((path, index) => {
+    if (index === 0) {
+      return path.trim().replace(/[/\\]*$/, '');
+    } else {
+      return path.trim().replace(/^[/\\]*|[/\\]*$/g, '');
+    }
+  }).join('/');
+}
+const VIDEO_OUTPUT = process.env.VIDEO_OUTPUT
 const VideoControl = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [userName, setUserName] = useState("");
+  const [searchParams] = useSearchParams();
+  const [videoSrc, setVideoSrc] = useState(null);
+  const VIDEO_OUTPUT = "/video"
 
   useEffect(() => {
-    if (location.state && location.state.userName) {
-      setUserName(location.state.userName);
+    const jobIdParam = searchParams.get("job_id");
+    let userIdParam = searchParams.get("user_id");
+
+    if (jobIdParam && userIdParam) {
+      const fullPath = `${VIDEO_OUTPUT}/${jobIdParam}/${userIdParam}.mp4`
+      // http://localhost:8000/video?job_id=1&user_id=1
+      setVideoSrc(fullPath)
+      console.log(fullPath)
     } else {
-      navigate("/");
+      navigate("/error");
     }
-  }, [location.state, navigate]);
+
+
+  }, [navigate, searchParams]);
 
   const [isPaused, setIsPaused] = useState(false);
   const [volume, setVolume] = useState(0.0);
@@ -61,10 +80,10 @@ const VideoControl = () => {
     <div className="relative min-h-screen overflow-hidden">
       <div className="flex flex-col justify-center items-center">
         <h2 className="text-2xl font-bold mb-4 text-gray-800">
-          Hello, {userName}!
+          Hello!
         </h2>
         <VideoPlayer
-          videoSrc={"2024_06_25_17.28.42.mp4"}
+          videoSrc={videoSrc}
           onVideoEnd={handleVideoEnd}
           disable={disableVideo}
         />
