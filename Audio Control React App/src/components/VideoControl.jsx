@@ -7,12 +7,18 @@ const VideoControl = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [userName, setUserName] = useState("");
+  const [videoSrc, setVideoSrc] = useState(""); // State for video source
 
   useEffect(() => {
     if (location.state && location.state.userName) {
       setUserName(location.state.userName);
     } else {
       navigate("/");
+    }
+
+    // Set the video source from the location state
+    if (location.state && location.state.videoUrl) {
+      setVideoSrc(location.state.videoUrl);
     }
   }, [location.state, navigate]);
 
@@ -64,7 +70,7 @@ const VideoControl = () => {
           Hello, {userName}!
         </h2>
         <VideoPlayer
-          videoSrc={"2024_06_25_17.28.42.mp4"}
+          videoSrc={videoSrc} // Use the dynamically fetched video source
           onVideoEnd={handleVideoEnd}
           disable={disableVideo}
         />
