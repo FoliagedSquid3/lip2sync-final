@@ -46,7 +46,7 @@ const WebcamStreamCapture = ({ onRecordingComplete }) => {
 
         const id = setInterval(() => {
           const blob = new Blob(recordedChunks, { type: "video/webm" });
-          console.log("Current Blob size:", blob.size);
+          // console.log("Current Blob size:", blob.size);
         }, 1000);
         setIntervalId(id);
       })

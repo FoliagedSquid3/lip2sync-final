@@ -3,31 +3,44 @@ import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import VideoPlayer from "./VideoPlayer";
 import AudioCapture from "./AudioCapture";
 
-function joinPaths(...paths) {
-  return paths.map((path, index) => {
-    if (index === 0) {
-      return path.trim().replace(/[/\\]*$/, '');
-    } else {
-      return path.trim().replace(/^[/\\]*|[/\\]*$/g, '');
-    }
-  }).join('/');
-}
-const VIDEO_OUTPUT = process.env.VIDEO_OUTPUT
 const VideoControl = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [videoSrc, setVideoSrc] = useState(null);
-  const VIDEO_OUTPUT = "/video"
+  const [jobId, setJobId] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const REACT_APP_API_URL = "http://localhost:8000"
 
   useEffect(() => {
     const jobIdParam = searchParams.get("job_id");
-    let userIdParam = searchParams.get("user_id");
+    const userIdParam = searchParams.get("user_id");
+    setJobId(jobIdParam);
+    setUserId(userIdParam);
+
+    const fetchVideo = async () => {
+      try {
+        const response = await fetch(`${REACT_APP_API_URL}/send_video`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ user_id: userIdParam, job_id: jobIdParam })
+        });
+        if (!response.ok) {
+          throw new Error('Video not found');
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        setVideoSrc(url);
+        console.log(`video size ${blob.size}`)
+        console.log(`Video temp url ${url}`)
+      } catch (error) {
+        console.error('Error fetching video:', error);
+      }
+    };
 
     if (jobIdParam && userIdParam) {
-      const fullPath = `${VIDEO_OUTPUT}/${jobIdParam}/${userIdParam}.mp4`
-      // http://localhost:8000/video?job_id=1&user_id=1
-      setVideoSrc(fullPath)
-      console.log(fullPath)
+      fetchVideo();
     } else {
       navigate("/error");
     }
@@ -45,9 +58,9 @@ const VideoControl = () => {
   const handleVoiceDetected = (isVoiceDetected) => {
     const videoElement = document.getElementById("video");
     if (!disableVideo) {
-      console.log(`Voice detected: ${isVoiceDetected}, Video paused: ${isPaused}`);
+      // console.log(`Voice detected: ${isVoiceDetected}, Video paused: ${isPaused}`);
       if (isVoiceDetected && !isPaused) {
-        console.log("Pausing video due to voice detection");
+        // console.log("Pausing video due to voice detection");
         videoElement.pause();
         setIsPaused(true);
       } else if (!isVoiceDetected && isPaused) {
@@ -86,6 +99,8 @@ const VideoControl = () => {
           videoSrc={videoSrc}
           onVideoEnd={handleVideoEnd}
           disable={disableVideo}
+          jobId={jobId}
+          userId={userId}
         />
       </div>
       <AudioCapture

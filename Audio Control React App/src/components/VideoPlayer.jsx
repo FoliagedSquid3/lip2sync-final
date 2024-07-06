@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faVolumeMute, faVolumeUp, faPause, faPlay, faStop, faUpload } from '@fortawesome/free-solid-svg-icons';
 
-const VideoPlayer = ({ videoSrc, onVideoEnd }) => {
+const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId }) => {
   const videoRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -12,11 +12,14 @@ const VideoPlayer = ({ videoSrc, onVideoEnd }) => {
   const [isRecordingComplete, setIsRecordingComplete] = useState(false);
   const mediaRecorderRef = useRef(null);
   const navigate = useNavigate();
-  const video_path = "/video/1/1.mp4"
+  const REACT_APP_API_URL = "http://localhost:8000"
 
   useEffect(() => {
     const videoElement = videoRef.current;
 
+    if (videoElement === null) {
+      return
+    }
     const handleEnded = () => {
       console.log("Video playback ended");
       if (onVideoEnd) {
@@ -31,7 +34,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd }) => {
     return () => {
       videoElement.removeEventListener("ended", handleEnded);
     };
-  }, [onVideoEnd]);
+  }, [onVideoEnd, videoSrc]);
 
   const handleMute = () => {
     if (videoRef.current) {
@@ -111,10 +114,10 @@ const VideoPlayer = ({ videoSrc, onVideoEnd }) => {
     try {
       const formData = new FormData();
       formData.append("file", blob, "recording.webm");
-      formData.append("job_id", 1);
-      formData.append("user_name", "Numan Pathan");
+      formData.append("job_id", jobId);
+      formData.append("user_id", userId);
 
-      const response = await fetch("http://127.0.0.1/upload", {
+      const response = await fetch(`${REACT_APP_API_URL}/upload`, {
         method: "POST",
         body: formData,
       });
@@ -141,7 +144,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd }) => {
   return (
     <div className="flex flex-col items-center justify-center">
       <div className="flex justify-center items-center w-full">
-        <video
+        {videoSrc && <video
           ref={videoRef}
           id="video"
           className="w-full h-auto" // Ensures video takes up full width and adjusts height automatically
@@ -150,7 +153,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd }) => {
         >
           <source src={videoSrc} type="video/mp4" />
           Your browser does not support the video tag.
-        </video>
+        </video>}
       </div>
       <div className="flex justify-between mt-4 space-x-4">
         <button

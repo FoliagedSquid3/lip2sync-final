@@ -14,13 +14,14 @@ router = APIRouter()
 RECORDING_DIR = os.getenv('RECORDING_DIR')
 os.makedirs(RECORDING_DIR, exist_ok=True)
 
-@router.post("/upload/")
-async def upload_video(file: UploadFile = File(...), job_id: int = Form(...), user_name: str = Form(...)):
+@router.post("/upload")
+async def upload_video(file: UploadFile = File(...), job_id: int = Form(...), user_id: str = Form(...)):
     try:
+        print(job_id)
         # Create a unique filename
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         original_filename = file.filename
-        filename = f"{timestamp}_job{job_id}_user{user_name}_{original_filename}"
+        filename = f"{timestamp}_job{job_id}_user{user_id}_{original_filename}"
         # Save the file with the new unique filename
         file_location = os.path.join(RECORDING_DIR, filename)
         with open(file_location, "wb+") as file_object:
@@ -37,7 +38,7 @@ async def upload_video(file: UploadFile = File(...), job_id: int = Form(...), us
         # Save details to the database
         query = jobs.insert().values(
             job_id=job_id,
-            name=user_name,
+            name=user_id,
             recording=output_filename
         )
         await database.execute(query)

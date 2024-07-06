@@ -93,7 +93,6 @@ def execute_script(audio_path, img_path, result_dir, job_id, user_id):
     # Ensure the output directory exists
     job_output_dir = os.path.join(result_dir, str(job_id))
     os.makedirs(job_output_dir, exist_ok=True)
-    video_output_path = os.path.join(job_output_dir, f"{user_id}.mp4")
 
     # Build the command
     command = [
@@ -102,7 +101,8 @@ def execute_script(audio_path, img_path, result_dir, job_id, user_id):
         "--ref_pose", os.path.abspath(os.path.join(script_dir, 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
         "--ref_eyeblink", os.path.abspath(os.path.join(script_dir, 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
         "--source_image", img_path,
-        "--result_dir", video_output_path,
+        "--result_dir", job_output_dir,
+        "--user_id", str(user_id), 
         "--still", "--preprocess", "full", "--enhancer", "gfpgan"
     ]
 
