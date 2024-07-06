@@ -171,8 +171,11 @@ async def fetch_job_details(job_id: int, user_id: int):
 
 @router.get("/jobs/{job_id}/{user_id}")
 async def get_job_details_endpoint(job_id: int, user_id: int):
-    avatar_img, questions, interview_timestamp,candidate_name = await fetch_job_details(job_id, user_id)
-    
+    try:
+        avatar_img, questions, interview_timestamp, candidate_name = await fetch_job_details(job_id, user_id)
+    except ValueError as e:  # Handle specific exceptions or use HTTPException
+        raise HTTPException(status_code=404, detail=str(e))
+
     if isinstance(questions, str):
         questions = questions.strip('[]').replace('"', '').split(',')
     questions = [q.strip() for q in questions if q.strip()]
@@ -181,9 +184,14 @@ async def get_job_details_endpoint(job_id: int, user_id: int):
     questions.extend(detailed_questions)  # Extending with direct questions
 
     if not questions:
-        return {"message": "No questions found for this job", "avatar_img": avatar_img}
-    
-    return {"candidate_name": candidate_name, "interview_timestamp": interview_timestamp, "avatar_img": avatar_img, "questions": questions}
+        raise HTTPException(status_code=404, detail="No questions found for this job")
+
+    return {
+        "candidate_name": candidate_name,
+        "interview_timestamp": interview_timestamp,
+        "avatar_img": avatar_img,
+        "questions": questions
+    }
 
 
 
@@ -191,16 +199,27 @@ frontend_base_url=os.getenv('FRONTEND_BASE_URL')
 
 @router.get("/jobs/{job_id}/process_complete/{user_id}")
 async def process_complete_job(job_id: int, user_id: int):
-    avatar_img, questions, interview_timestamp,candidate_name = await get_job_details_endpoint(job_id, user_id)
-    print('avatar img',avatar_img)
-    print('timestamp',interview_timestamp)
-    print('name',candidate_name)
-    print('questions',questions
-    )
-    if not formatted_questions:
-        return {"message": "No questions found for this job", "avatar_img": avatar_img}
+    # Fetch job details using the endpoint function
+    job_details = await get_job_details_endpoint(job_id, user_id)
+    if "error" in job_details:
+        return job_details  # Return or handle error accordingly
+
+    avatar_img = job_details['avatar_img']
+    questions = job_details['questions']
+    candidate_name = job_details['candidate_name']
+    interview_timestamp = job_details['interview_timestamp']
+
+    # Process data further...
+    print('Avatar Image:', avatar_img)
+    print('Timestamp:', interview_timestamp)
+    print('Candidate Name:', candidate_name)
+    print('Questions:', questions)
+    
+    formatted_questions = " <break time='5000ms'/> ".join(questions)
+    
     # Continue with additional processing if needed
     # Download and process image
+    
     if avatar_img:
         image = download_image(avatar_img)
         if image:
