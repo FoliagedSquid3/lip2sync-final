@@ -5,8 +5,17 @@ const Home = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Navigate to /video as soon as the component is loaded
-    navigate("/video", { state: { userName: "Numan Pathan" } });
+    // Simulate fetching data from the backend
+    async function fetchData() {
+      // Simulate fetching video URL and other data needed
+      const video_url_from_backend = "http://localhost:3000/videos/1/1.mp4";
+      const userName = "Numan Pathan";
+
+      // Navigate to /video with state parameters
+      navigate('/video', { state: { videoUrl: video_url_from_backend, userName } });
+    }
+
+    fetchData();
   }, [navigate]);
 
   return null; // Render nothing as it will navigate immediately
