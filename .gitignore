@@ -12,3 +12,4 @@ backend/app/gfpgan/weights
 Audio Control React App/node_modules
 backend/app/api/gfpgan/weights/*
 backend/app/checkpoints
+Audio Control React App/build

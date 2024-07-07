@@ -9,7 +9,6 @@ from PIL import Image
 from io import BytesIO
 from pathlib import Path
 import openai
-from openai._client import OpenAI
 import subprocess
 import sys
 import traceback
@@ -114,33 +113,93 @@ def execute_script(audio_path, img_path, result_dir, job_id, user_id):
     except FileNotFoundError as e:
         print(f"Failed to execute script, file not found: {e}")
 
+
+# Function to generate additional questions using OpenAI's API
+async def fetch_additional_questions(initial_questions):
+    openai_api_key = os.getenv('OPENAI_KEY')
+    openai.api_key = openai_api_key
+
+    try:
+        # Updating the prompt to focus on generating advanced technical questions
+        prompt = "Given these initial interview questions about coding experience, create direct, in-depth technical questions focusing on syntax, architecture, and best practices:\n\n"
+        for question in initial_questions:
+            prompt += f"{question}\n"
+
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an assistant tasked with generating advanced technical interview questions."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.5,
+            max_tokens=500,
+            top_p=1.0,
+            frequency_penalty=0.0,
+            presence_penalty=0.0
+        )
+        
+        # Extracting questions, filtering out any numeric prefixes
+        messages = response.get('choices', [{}])[0].get('message', {}).get('content', '')
+        detailed_questions = [line.strip() for line in messages.split('\n') if line.strip() and not line.lstrip().split()[0].isdigit()]
+
+        return detailed_questions
+    except Exception as e:
+        print(f"Failed to generate detailed questions: {str(e)}")
+        return []
+
+
 async def fetch_job_details(job_id: int, user_id: int):
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(f"{job_api}/{job_id}")
             response.raise_for_status()
             job = response.json()
-            # This should be the global job avatar, not user-specific
             avatar_img = job.get('avatar_img', '')
-            print("Avatar Image URL:", avatar_img)  # Debug to check the URL
-            applicant_data = next((applicant for applicant in job['applicants'] if applicant['user']['id'] == user_id), None)
+            
+            # Extracting applicant data and ensuring it includes the candidate's name
+            applicant_data = next((applicant for applicant in job.get('applicants', []) if applicant['user']['id'] == user_id), None)
             if not applicant_data:
                 raise HTTPException(status_code=404, detail="Applicant not found")
+
+            candidate_name = applicant_data['user']['name']  # Fetching candidate name
             interview_timestamp = applicant_data.get('interview_timestamp')
-            questions = job.get('questions', [])
-            return avatar_img, questions, interview_timestamp
+            questions = job.get('questions', [])  # Parsing questions list
+
+            # Log the avatar URL and candidate name to verify correct data fetching
+            print("Avatar Image URL:", avatar_img)
+            print("Candidate Name:", candidate_name)
+
+            # Return all relevant data
+            return avatar_img, questions, interview_timestamp, candidate_name
         except httpx.HTTPError as e:
             raise HTTPException(status_code=e.response.status_code, detail=str(e))
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+
 @router.get("/jobs/{job_id}/{user_id}")
 async def get_job_details_endpoint(job_id: int, user_id: int):
-    avatar_img, questions, interview_timestamp = await fetch_job_details(job_id, user_id)
-    print('avatar img',avatar_img)
+    try:
+        avatar_img, questions, interview_timestamp, candidate_name = await fetch_job_details(job_id, user_id)
+    except ValueError as e:  # Handle specific exceptions or use HTTPException
+        raise HTTPException(status_code=404, detail=str(e))
+
+    if isinstance(questions, str):
+        questions = questions.strip('[]').replace('"', '').split(',')
+    questions = [q.strip() for q in questions if q.strip()]
+
+    detailed_questions = await fetch_additional_questions(questions)
+    questions.extend(detailed_questions)  # Extending with direct questions
+
     if not questions:
-        return {"message": "No questions found for this job", "avatar_img": avatar_img}
-    return {"avatar_img": avatar_img, "questions": questions, "interview_timestamp": interview_timestamp}
+        raise HTTPException(status_code=404, detail="No questions found for this job")
+
+    return {
+        "candidate_name": candidate_name,
+        "interview_timestamp": interview_timestamp,
+        "avatar_img": avatar_img,
+        "questions": questions
+    }
 
 
 
@@ -148,12 +207,27 @@ frontend_base_url=os.getenv('FRONTEND_BASE_URL')
 
 @router.get("/jobs/{job_id}/process_complete/{user_id}")
 async def process_complete_job(job_id: int, user_id: int):
-    avatar_img, formatted_questions, interview_timestamp = await fetch_job_details(job_id, user_id)
-    print('avatar img',avatar_img)
-    if not formatted_questions:
-        return {"message": "No questions found for this job", "avatar_img": avatar_img}
+    # Fetch job details using the endpoint function
+    job_details = await get_job_details_endpoint(job_id, user_id)
+    if "error" in job_details:
+        return job_details  # Return or handle error accordingly
+
+    avatar_img = job_details['avatar_img']
+    questions = job_details['questions']
+    candidate_name = job_details['candidate_name']
+    interview_timestamp = job_details['interview_timestamp']
+
+    # Process data further...
+    print('Avatar Image:', avatar_img)
+    print('Timestamp:', interview_timestamp)
+    print('Candidate Name:', candidate_name)
+    print('Questions:', questions)
+    
+    formatted_questions = " <break time='5000ms'/> ".join(questions)
+    
     # Continue with additional processing if needed
     # Download and process image
+    
     if avatar_img:
         image = download_image(avatar_img)
         if image:
