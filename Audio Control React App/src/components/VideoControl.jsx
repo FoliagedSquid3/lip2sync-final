@@ -42,7 +42,6 @@ const VideoControl = () => {
   const [userId, setUserId] = useState(null);
   const [userName, setUserName] = useState('');
   const REACT_APP_API_URL = process.env.REACT_APP_BACKEND_URL;
-  console.log(REACT_APP_API_URL);
 
   useEffect(() => {
     const jobIdParam = searchParams.get("job_id");
@@ -50,7 +49,6 @@ const VideoControl = () => {
     setJobId(jobIdParam);
     setUserId(userIdParam);
 
-    //const apiUrl = "https://app.timetomeet.ai/api/jobs"; // Define the URL of the API endpoint
     const apiUrl = process.env.REACT_APP_API_URL;
 
     const fetchData = async () => {
@@ -89,7 +87,7 @@ const VideoControl = () => {
 
     if (jobIdParam && userIdParam) {
       fetchData();
-      //fetchVideo();
+      fetchVideo();
     } else {
       navigate("/error");
     }
@@ -150,6 +148,7 @@ const VideoControl = () => {
           disable={disableVideo}
           jobId={jobId}
           userId={userId}
+          userName={userName}
         />
       </div>
       <AudioCapture

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faVolumeMute, faVolumeUp, faPause, faPlay, faStop, faUpload } from '@fortawesome/free-solid-svg-icons';
 
-const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId }) => {
+const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
   const videoRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -12,7 +12,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId }) => {
   const [isRecordingComplete, setIsRecordingComplete] = useState(false);
   const mediaRecorderRef = useRef(null);
   const navigate = useNavigate();
-  const REACT_APP_API_URL = "http://localhost:8000"
+  const REACT_APP_API_URL = process.env.REACT_APP_BACKEND_URL;
 
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -102,6 +102,10 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId }) => {
 
   const handleUploadClick = useCallback(async () => {
     handleStopCaptureClick();
+    const videoElement = document.getElementById("video");
+    if (videoElement) {
+      videoElement.pause(); // Ensure the video is paused
+    }
 
     if (recordedChunks.length === 0) {
       console.error("No recorded chunks to upload");
@@ -116,6 +120,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId }) => {
       formData.append("file", blob, "recording.webm");
       formData.append("job_id", jobId);
       formData.append("user_id", userId);
+      formData.append("user_name", userName);
 
       const response = await fetch(`${REACT_APP_API_URL}/upload`, {
         method: "POST",

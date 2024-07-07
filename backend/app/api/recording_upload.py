@@ -21,7 +21,7 @@ RECORDING_DIR = os.getenv('RECORDING_DIR')
 os.makedirs(RECORDING_DIR, exist_ok=True)
 
 @router.post("/upload")
-async def upload_video(file: UploadFile = File(...), job_id: int = Form(...), user_id: str = Form(...)):
+async def upload_video(file: UploadFile = File(...), job_id: int = Form(...), user_id: str = Form(...),  user_name: str = Form(...)):
     try:
         print(job_id)
         # Create a unique filename
@@ -43,8 +43,9 @@ async def upload_video(file: UploadFile = File(...), job_id: int = Form(...), us
 
         # Save details to the database
         query = jobs.insert().values(
-            job_id=job_id,
-            name=user_id,
+            job_id=int(job_id),
+            user_id=int(user_id),
+            user_name=user_name,
             recording=output_filename
         )
         await database.execute(query)

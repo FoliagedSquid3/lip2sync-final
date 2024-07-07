@@ -14,7 +14,8 @@ jobs = Table(
     metadata,
     Column('id', Integer, primary_key=True, autoincrement=True),
     Column('job_id', Integer, index=True),
-    Column('name', String),
+    Column('user_id', Integer, index=True),
+    Column('user_name', String),
     Column('recording', String)
 )
 

@@ -13,7 +13,7 @@ import subprocess
 import sys
 import traceback
 from gtts import gTTS
-# from deepface import DeepFace
+from deepface import DeepFace
 from pydub import AudioSegment
 from pydantic import BaseModel
 
@@ -45,10 +45,10 @@ def detect_gender_from_image(image):
 
     # Analyze the image to predict the gender
     try:
-        return "Man"
-        # result = DeepFace.analyze(img_path=image, actions=['gender'])
-        # dominant_gender = result[0]['dominant_gender']
-        # return dominant_gender
+        # return "Man"
+        result = DeepFace.analyze(img_path=image, actions=['gender'])
+        dominant_gender = result[0]['dominant_gender']
+        return dominant_gender
     
     except Exception as e:
         print(f"Failed to detect gender, error: {e}")
