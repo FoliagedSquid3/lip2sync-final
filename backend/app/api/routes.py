@@ -246,7 +246,8 @@ async def process_complete_job(job_id: int, user_id: int):
     execute_script(audio_path, image_path, result_dir, job_id, user_id)
 
     # Assuming the video is now saved in `result_dir`
-    video_url = f"{frontend_base_url}/videos/{job_id}/{user_id}.mp4"
+    video_url = f"{frontend_base_url}/video?job_id={job_id}&user_id={user_id}"
+    # video_url = f"{frontend_base_url}/videos/{job_id}/{user_id}.mp4"
     return {"video_url": video_url}
 
 @router.post("/send_video")
