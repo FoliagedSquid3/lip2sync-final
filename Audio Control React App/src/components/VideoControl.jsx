@@ -87,7 +87,7 @@ const VideoControl = () => {
 
     if (jobIdParam && userIdParam) {
       fetchData();
-      fetchVideo();
+      //fetchVideo();
     } else {
       navigate("/error");
     }

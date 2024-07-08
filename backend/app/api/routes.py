@@ -16,6 +16,8 @@ from gtts import gTTS
 from deepface import DeepFace
 from pydub import AudioSegment
 from pydantic import BaseModel
+import glob
+import shutil
 
 class SendVideo(BaseModel):
     user_id: int | str
@@ -82,9 +84,14 @@ def change_pitch(audio_path, semitones):
     return audio_path 
 
 def execute_script(audio_path, img_path, result_dir, job_id, user_id):
+
+    print('job id',job_id)
+    print('user id',user_id)
     # Construct the full path to the inference script
     script_dir = os.path.dirname(os.path.abspath(__file__))
+    print('script dir',script_dir)
     inference_script_path = os.path.join(script_dir, 'SadTalker', 'inference.py')
+    print('inference',inference_script_path)
 
     if not os.path.exists(inference_script_path):
         raise FileNotFoundError(f"The specified script does not exist: {inference_script_path}")
@@ -101,13 +108,32 @@ def execute_script(audio_path, img_path, result_dir, job_id, user_id):
         "--ref_eyeblink", os.path.abspath(os.path.join(script_dir, 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
         "--source_image", img_path,
         "--result_dir", job_output_dir,
-        "--user_id", str(user_id), 
-        "--still", "--preprocess", "full", "--enhancer", "gfpgan"
+        "--still", "--preprocess", "full" #"--enhancer", "gfpgan"
     ]
+    result_dir = str(result_dir)  # Ensure result_dir is a string
+    job_id = str(job_id)         # Ensure job_id is a string
+    user_id = str(user_id)    
+    subprocess.run(command, check=True)
+    print("Script execution successful.")
+    generated_video_path = glob.glob(os.path.join(job_output_dir, '*.mp4'))[0]
+    print('generated video path',generated_video_path)
+   # New file path with user_id
+    new_video_path = os.path.join(job_output_dir, f"{user_id}.mp4")
+
+    # Rename the video
+    os.rename(generated_video_path, new_video_path)
+    print('New generated video path:', new_video_path)
 
     try:
-        subprocess.run(command, check=True)
-        print("Script execution successful.")
+        print('x')
+        # subprocess.run(command, check=True)
+        # print("Script execution successful.")
+        # generated_video_path = glob.glob(os.path.join(job_output_dir, '*.mp4'))[0]
+        # print('generated video path',generated_video_path)
+        # final_video_path = os.path.join(result_dir, f"{user_id}.mp4")
+        # print('final video path',final_video_path)
+        # shutil.move(generated_video_path, final_video_path)
+        # print('The generated video is named', final_video_path)
     except subprocess.CalledProcessError as e:
         print(f"Script execution failed: {e}")
     except FileNotFoundError as e:
@@ -188,8 +214,8 @@ async def get_job_details_endpoint(job_id: int, user_id: int):
         questions = questions.strip('[]').replace('"', '').split(',')
     questions = [q.strip() for q in questions if q.strip()]
 
-    detailed_questions = await fetch_additional_questions(questions)
-    questions.extend(detailed_questions)  # Extending with direct questions
+    # detailed_questions = await fetch_additional_questions(questions)
+    # questions.extend(detailed_questions)  # Extending with direct questions
 
     if not questions:
         raise HTTPException(status_code=404, detail="No questions found for this job")
@@ -205,7 +231,7 @@ async def get_job_details_endpoint(job_id: int, user_id: int):
 
 frontend_base_url=os.getenv('FRONTEND_BASE_URL')
 
-@router.get("/jobs/{job_id}/process_complete/{user_id}")
+@router.get("/schedule-meeting/{job_id}/{user_id}")
 async def process_complete_job(job_id: int, user_id: int):
     # Fetch job details using the endpoint function
     job_details = await get_job_details_endpoint(job_id, user_id)
@@ -247,6 +273,7 @@ async def process_complete_job(job_id: int, user_id: int):
 
     # Assuming the video is now saved in `result_dir`
     video_url = f"{frontend_base_url}/video?job_id={job_id}&user_id={user_id}"
+    print('video url',video_url)
     # video_url = f"{frontend_base_url}/videos/{job_id}/{user_id}.mp4"
     return {"video_url": video_url}
 

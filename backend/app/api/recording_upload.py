@@ -25,9 +25,9 @@ async def upload_video(file: UploadFile = File(...), job_id: int = Form(...), us
     try:
         print(job_id)
         # Create a unique filename
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        original_filename = file.filename
-        filename = f"{timestamp}_job{job_id}_user{user_id}_{original_filename}"
+        #timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        #original_filename = file.filename
+        filename = f"{job_id}_{user_id}"
         # Save the file with the new unique filename
         file_location = os.path.join(RECORDING_DIR, filename)
         with open(file_location, "wb+") as file_object:
@@ -126,12 +126,9 @@ def copy_to_public(file_name):
         shutil.copy(source, destination)
     return destination
 
-
-
 frontend_base_url=os.getenv('FRONTEND_BASE_URL')
 
-
-@router.get("/jobs/{job_id}/review/{user_id}")
+@router.get("/jobs/review/{job_id}/{user_id}")
 async def review_recording(job_id: int, user_id: int):
     """Fetches and reviews a job interview recording, making it available in a public folder."""
     filename = f"{job_id}_{user_id}.mp4"
