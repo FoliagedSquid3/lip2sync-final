@@ -270,21 +270,45 @@ async def process_complete_job(job_id: int, user_id: int):
         audio_path = generate_speech(formatted_questions.split(" <break time='5000ms'/> "), job_id)  # Assuming this needs the list of questions
     # Generate video
     execute_script(audio_path, image_path, result_dir, job_id, user_id)
-
+    print('frontend base url', frontend_base_url)
     # Assuming the video is now saved in `result_dir`
     video_url = f"{frontend_base_url}/video?job_id={job_id}&user_id={user_id}"
     print('video url',video_url)
-    # video_url = f"{frontend_base_url}/videos/{job_id}/{user_id}.mp4"
     return {"video_url": video_url}
 
 @router.post("/send_video")
-async def send_vide(request: SendVideo):
+async def send_video(request: SendVideo):
     try:
         job_id = str(request.job_id)
         user_id = str(request.user_id) + ".mp4"
         video_path = os.path.join(result_dir, job_id, user_id)
-        print(video_path)
-        return  FileResponse(video_path)
-    except:
+        
+        # Temporary path for the encoded video
+        temp_video_path = os.path.join(result_dir, job_id, f"temp_{user_id}")
+        
+        # FFmpeg command for encoding
+        command = [
+            'ffmpeg',
+            '-i', video_path,  # Input file
+            '-c:v', 'libx264',  # Video codec to H.264
+            '-c:a', 'aac',      # Audio codec to AAC
+            '-strict', 'experimental',  # Allow experimental codecs for compatibility
+            '-b:a', '192k',     # Audio bitrate
+            '-y',               # Overwrite output files without asking
+            temp_video_path     # Output to temporary file
+        ]
+
+        # Execute the FFmpeg command
+        subprocess.run(command, check=True)
+
+        # If encoding is successful, replace the original file with the encoded one
+        shutil.move(temp_video_path, video_path)  # This will overwrite the original file
+
+        print(f"Video path (overwritten): {video_path}")
+        return FileResponse(video_path, media_type='video/mp4')
+    except subprocess.CalledProcessError as e:
+        print(f"Error during video encoding: {str(e)}")
+        raise HTTPException(status_code=500, detail="Video encoding failed")
+    except Exception as e:
         traceback.print_exc()
-        return None
+        raise HTTPException(status_code=500, detail="Failed to process video")

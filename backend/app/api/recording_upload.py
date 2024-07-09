@@ -128,7 +128,7 @@ def copy_to_public(file_name):
 
 frontend_base_url=os.getenv('FRONTEND_BASE_URL')
 
-@router.get("/jobs/review/{job_id}/{user_id}")
+@router.get("/jobs/{job_id}/review/{user_id}")
 async def review_recording(job_id: int, user_id: int):
     """Fetches and reviews a job interview recording, making it available in a public folder."""
     filename = f"{job_id}_{user_id}.mp4"

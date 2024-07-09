@@ -80,6 +80,7 @@ const VideoControl = () => {
         setVideoSrc(url);
         console.log(`video size ${blob.size}`)
         console.log(`Video temp url ${url}`)
+        console.log("Response type:", blob.type); // This should log 'video/mp4'
       } catch (error) {
         console.error('Error fetching video:', error);
       }
@@ -87,7 +88,8 @@ const VideoControl = () => {
 
     if (jobIdParam && userIdParam) {
       fetchData();
-      //fetchVideo();
+      fetchVideo();
+      console.log('fetching video and data')
     } else {
       navigate("/error");
     }
