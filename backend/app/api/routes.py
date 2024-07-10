@@ -18,6 +18,9 @@ from pydub import AudioSegment
 from pydantic import BaseModel
 import glob
 import shutil
+from fastapi import BackgroundTasks
+
+
 
 class SendVideo(BaseModel):
     user_id: int | str
@@ -69,7 +72,8 @@ def generate_speech(questions_text, job_id):
     filename = f"{job_id}.wav"
     wav_path = os.path.join(output_dir, filename)
     
-    text_needed = " <break time='5000ms'/> ".join(questions_text)  # Adjust breaks as necessary for speech pauses
+    text_needed = "".join(questions_text)  # Adding newlines to simulate pauses
+
     tts = gTTS(text=text_needed, lang='en')
     os.makedirs(output_dir, exist_ok=True)
     tts.save(wav_path)
@@ -232,7 +236,7 @@ async def get_job_details_endpoint(job_id: int, user_id: int):
 frontend_base_url=os.getenv('FRONTEND_BASE_URL')
 
 @router.get("/schedule-meeting/{job_id}/{user_id}")
-async def process_complete_job(job_id: int, user_id: int):
+async def process_complete_job(background_tasks: BackgroundTasks,job_id: int, user_id: int):
     # Fetch job details using the endpoint function
     job_details = await get_job_details_endpoint(job_id, user_id)
     if "error" in job_details:
@@ -249,7 +253,7 @@ async def process_complete_job(job_id: int, user_id: int):
     print('Candidate Name:', candidate_name)
     print('Questions:', questions)
     
-    formatted_questions = " <break time='5000ms'/> ".join(questions)
+    formatted_questions = questions
     
     # Continue with additional processing if needed
     # Download and process image
@@ -264,17 +268,25 @@ async def process_complete_job(job_id: int, user_id: int):
             return {"error": "Failed to download or process avatarimage"}
     # Generate speech
     if gender=="Man":
-        audio_path = generate_speech(formatted_questions.split(" <break time='5000ms'/> "), job_id)  # Assuming this needs the list of questions
+        audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
         audio_path = change_pitch(audio_path, -4)
     else:
-        audio_path = generate_speech(formatted_questions.split(" <break time='5000ms'/> "), job_id)  # Assuming this needs the list of questions
+        audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
+    
     # Generate video
-    execute_script(audio_path, image_path, result_dir, job_id, user_id)
-    print('frontend base url', frontend_base_url)
+    #execute_script(audio_path, image_path, result_dir, job_id, user_id)
+
+    meeting_url = f"{frontend_base_url}/video?job_id={job_id}&user_id={user_id}"
+
+    background_tasks.add_task(execute_script, audio_path, image_path, result_dir, job_id, user_id)
     # Assuming the video is now saved in `result_dir`
-    video_url = f"{frontend_base_url}/video?job_id={job_id}&user_id={user_id}"
-    print('video url',video_url)
-    return {"video_url": video_url}
+
+    print('video url',meeting_url)
+     # Return the video and meeting URL immediately
+    return {
+        "message": "Video processing started, please check the meeting URL later for the result.",
+        "video_url": meeting_url,
+    }
 
 @router.post("/send_video")
 async def send_video(request: SendVideo):

@@ -41,6 +41,7 @@ const VideoControl = () => {
   const [jobId, setJobId] = useState(null);
   const [userId, setUserId] = useState(null);
   const [userName, setUserName] = useState('');
+  const [isLoading, setIsLoading] = useState(true);  // State to manage loading indicator
   const REACT_APP_API_URL = process.env.REACT_APP_BACKEND_URL;
 
   useEffect(() => {
@@ -78,6 +79,7 @@ const VideoControl = () => {
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
         setVideoSrc(url);
+        setIsLoading(false);
         console.log(`video size ${blob.size}`)
         console.log(`Video temp url ${url}`)
         console.log("Response type:", blob.type); // This should log 'video/mp4'
@@ -93,9 +95,11 @@ const VideoControl = () => {
     } else {
       navigate("/error");
     }
+    
 
 
   }, [navigate, searchParams]);
+
 
   const [isPaused, setIsPaused] = useState(false);
   const [volume, setVolume] = useState(0.0);
@@ -135,7 +139,9 @@ const VideoControl = () => {
 
   const handleUploadButtonClick = () => {
     console.log("Upload button clicked. Navigating to thank you page.");
-    navigate("/thankyou");
+    const redirectUrl = `http://app.timetomeet.ai/meeting-finished/${jobId}/${userId}`;
+    window.location.href = redirectUrl; // Redirect to the external URL
+    // navigate("/thankyou");
   };
 
   return (
@@ -144,6 +150,12 @@ const VideoControl = () => {
         <h2 className="text-2xl font-bold mb-4 text-gray-800">
           Hello {userName}!
         </h2>
+        {isLoading && (
+          <div className="flex flex-col justify-center items-center min-h-screen">
+          <div className="animate-spin rounded-full border-t-transparent border-solid border-blue-500 border-8 h-16 w-16"></div>  {/* Loader */}
+          <p className="text-black font-bold text-lg mt-4">Please wait, the recruiter will be joining shortly...</p>  {/* Larger text displayed below the loader */}
+        </div>
+        )}
         <VideoPlayer
           videoSrc={videoSrc}
           onVideoEnd={handleVideoEnd}
