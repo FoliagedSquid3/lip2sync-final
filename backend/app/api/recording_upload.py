@@ -27,7 +27,7 @@ async def upload_video(file: UploadFile = File(...), job_id: int = Form(...), us
         # Create a unique filename
         #timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         #original_filename = file.filename
-        filename = f"{job_id}_{user_id}"
+        filename = f"{job_id}_{user_id}mp4."
         # Save the file with the new unique filename
         file_location = os.path.join(RECORDING_DIR, filename)
         with open(file_location, "wb+") as file_object:

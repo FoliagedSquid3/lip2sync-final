@@ -87,7 +87,42 @@ def change_pitch(audio_path, semitones):
     changed_audio.export(audio_path, format="wav")  # Overwrite the original file with modified pitch
     return audio_path 
 
-def execute_script(audio_path, img_path, result_dir, job_id, user_id):
+async def execute_script(result_dir, job_id, user_id):
+
+    job_details = await get_job_details_endpoint(job_id, user_id)
+    if "error" in job_details:
+        return job_details  # Return or handle error accordingly
+
+    avatar_img = job_details['avatar_img']
+    questions = job_details['questions']
+    candidate_name = job_details['candidate_name']
+    interview_timestamp = job_details['interview_timestamp']
+
+    # Process data further...
+    print('Avatar Image:', avatar_img)
+    print('Timestamp:', interview_timestamp)
+    print('Candidate Name:', candidate_name)
+    print('Questions:', questions)
+    
+    formatted_questions = questions
+    
+    # Continue with additional processing if needed
+    # Download and process image
+    
+    if avatar_img:
+        image = download_image(avatar_img)
+        if image:
+            image_path = os.path.join(images_dir, f"{job_id}.png")  # Use os.path.join for building paths
+            convert_to_png(image, image_path)
+            gender=detect_gender_from_image(image_path)
+        else:
+            return {"error": "Failed to download or process avatarimage"}
+    # Generate speech
+    if gender=="Man":
+        audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
+        audio_path = change_pitch(audio_path, -4)
+    else:
+        audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
 
     print('job id',job_id)
     print('user id',user_id)
@@ -110,13 +145,14 @@ def execute_script(audio_path, img_path, result_dir, job_id, user_id):
         "--driven_audio", audio_path,
         "--ref_pose", os.path.abspath(os.path.join(script_dir, 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
         "--ref_eyeblink", os.path.abspath(os.path.join(script_dir, 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
-        "--source_image", img_path,
+        "--source_image", image_path,
         "--result_dir", job_output_dir,
         "--still", "--preprocess", "full" #"--enhancer", "gfpgan"
     ]
     result_dir = str(result_dir)  # Ensure result_dir is a string
     job_id = str(job_id)         # Ensure job_id is a string
     user_id = str(user_id)    
+    print('user id',user_id)
     subprocess.run(command, check=True)
     print("Script execution successful.")
     generated_video_path = glob.glob(os.path.join(job_output_dir, '*.mp4'))[0]
@@ -130,14 +166,6 @@ def execute_script(audio_path, img_path, result_dir, job_id, user_id):
 
     try:
         print('x')
-        # subprocess.run(command, check=True)
-        # print("Script execution successful.")
-        # generated_video_path = glob.glob(os.path.join(job_output_dir, '*.mp4'))[0]
-        # print('generated video path',generated_video_path)
-        # final_video_path = os.path.join(result_dir, f"{user_id}.mp4")
-        # print('final video path',final_video_path)
-        # shutil.move(generated_video_path, final_video_path)
-        # print('The generated video is named', final_video_path)
     except subprocess.CalledProcessError as e:
         print(f"Script execution failed: {e}")
     except FileNotFoundError as e:
@@ -237,50 +265,12 @@ frontend_base_url=os.getenv('FRONTEND_BASE_URL')
 
 @router.get("/schedule-meeting/{job_id}/{user_id}")
 async def process_complete_job(background_tasks: BackgroundTasks,job_id: int, user_id: int):
-    # Fetch job details using the endpoint function
-    job_details = await get_job_details_endpoint(job_id, user_id)
-    if "error" in job_details:
-        return job_details  # Return or handle error accordingly
-
-    avatar_img = job_details['avatar_img']
-    questions = job_details['questions']
-    candidate_name = job_details['candidate_name']
-    interview_timestamp = job_details['interview_timestamp']
-
-    # Process data further...
-    print('Avatar Image:', avatar_img)
-    print('Timestamp:', interview_timestamp)
-    print('Candidate Name:', candidate_name)
-    print('Questions:', questions)
-    
-    formatted_questions = questions
-    
-    # Continue with additional processing if needed
-    # Download and process image
-    
-    if avatar_img:
-        image = download_image(avatar_img)
-        if image:
-            image_path = os.path.join(images_dir, f"{job_id}.png")  # Use os.path.join for building paths
-            convert_to_png(image, image_path)
-            gender=detect_gender_from_image(image_path)
-        else:
-            return {"error": "Failed to download or process avatarimage"}
-    # Generate speech
-    if gender=="Man":
-        audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
-        audio_path = change_pitch(audio_path, -4)
-    else:
-        audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
-    
-    # Generate video
-    #execute_script(audio_path, image_path, result_dir, job_id, user_id)
-
+  
     meeting_url = f"{frontend_base_url}/video?job_id={job_id}&user_id={user_id}"
 
-    background_tasks.add_task(execute_script, audio_path, image_path, result_dir, job_id, user_id)
+    background_tasks.add_task(execute_script, result_dir, job_id, user_id)
     # Assuming the video is now saved in `result_dir`
-
+    
     print('video url',meeting_url)
      # Return the video and meeting URL immediately
     return {
