@@ -19,8 +19,10 @@ from pydantic import BaseModel
 import glob
 import shutil
 from fastapi import BackgroundTasks
-
-
+from backend.app.celery_app import app as celery_app
+import celery
+from celery import shared_task
+import asyncio
 
 class SendVideo(BaseModel):
     user_id: int | str
@@ -34,6 +36,15 @@ openai_key=os.getenv('OPENAI_KEY')
 output_audio_dir=os.getenv('AUDIO_OUTPUT')
 result_dir=os.getenv('VIDEO_OUTPUT')
 images_dir=os.getenv('IMAGES_DIR')
+
+@router.post("/execute-task/")
+def execute_task():
+    task = celery.send_task('backend.app.api.routes.my_task')
+    print('taslk',task)
+    return {"message": "Task submitted!", "task_id": task.id}
+
+
+
 
 def download_image(image_url):
     try:
@@ -71,12 +82,28 @@ def generate_speech(questions_text, job_id):
     output_dir = output_audio_dir
     filename = f"{job_id}.wav"
     wav_path = os.path.join(output_dir, filename)
-    
-    text_needed = "".join(questions_text)  # Adding newlines to simulate pauses
 
-    tts = gTTS(text=text_needed, lang='en')
+    silence = AudioSegment.silent(duration=3000)
+
+    combined = AudioSegment.empty()
+
+    # Generate and concatenate each question with a 5-second silence
+    for question in questions_text:
+        tts = gTTS(text=question, lang='en')
+        # Save the speech to a temporary file
+        temporary_path = 'temp.mp3'
+        tts.save(temporary_path)
+        # Load this temporary file as an AudioSegment
+        question_audio = AudioSegment.from_mp3(temporary_path)
+        # Concatenate question audio with silence
+        combined += question_audio + silence
+        # Optionally, remove the temporary file if you want
+        os.remove(temporary_path)
+
+    # Ensure the output directory exists
     os.makedirs(output_dir, exist_ok=True)
-    tts.save(wav_path)
+    # Export the combined audio to the final WAV file
+    combined.export(wav_path, format='wav')
 
     return wav_path
 
@@ -87,8 +114,24 @@ def change_pitch(audio_path, semitones):
     changed_audio.export(audio_path, format="wav")  # Overwrite the original file with modified pitch
     return audio_path 
 
-async def execute_script(result_dir, job_id, user_id):
+@shared_task
+def execute_script(result_dir, job_id, user_id):
+    print("Starting script execution...")
+    try:
+        loop = asyncio.get_event_loop()
+        print('loop',loop)
+        if loop.is_closed():
+            loop = asyncio.new_event_loop()
+            print('loop',loop)
+            asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(async_execute_script(result_dir, job_id, user_id))
+        print('result',result)
+        return result
+    finally:
+        loop.close()
+        print("Event loop closed.")
 
+async def async_execute_script(result_dir, job_id, user_id):
     job_details = await get_job_details_endpoint(job_id, user_id)
     if "error" in job_details:
         return job_details  # Return or handle error accordingly
@@ -139,6 +182,10 @@ async def execute_script(result_dir, job_id, user_id):
     job_output_dir = os.path.join(result_dir, str(job_id))
     os.makedirs(job_output_dir, exist_ok=True)
 
+    temp_output = os.path.join(result_dir, "temp")
+    os.makedirs(job_output_dir, exist_ok=True)
+    print("****"*10)
+    print("temp output dir ", temp_output)
     # Build the command
     command = [
         sys.executable, inference_script_path,
@@ -146,7 +193,7 @@ async def execute_script(result_dir, job_id, user_id):
         "--ref_pose", os.path.abspath(os.path.join(script_dir, 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
         "--ref_eyeblink", os.path.abspath(os.path.join(script_dir, 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
         "--source_image", image_path,
-        "--result_dir", job_output_dir,
+        "--result_dir", temp_output,
         "--still", "--preprocess", "full" #"--enhancer", "gfpgan"
     ]
     result_dir = str(result_dir)  # Ensure result_dir is a string
@@ -154,22 +201,45 @@ async def execute_script(result_dir, job_id, user_id):
     user_id = str(user_id)    
     print('user id',user_id)
     subprocess.run(command, check=True)
+
     print("Script execution successful.")
-    generated_video_path = glob.glob(os.path.join(job_output_dir, '*.mp4'))[0]
-    print('generated video path',generated_video_path)
+    generated_video_path = glob.glob(os.path.join(temp_output, '*.mp4'))[0]
+    print('src video path',generated_video_path)
    # New file path with user_id
     new_video_path = os.path.join(job_output_dir, f"{user_id}.mp4")
+    print('dest video path', new_video_path)
 
     # Rename the video
-    os.rename(generated_video_path, new_video_path)
+    shutil.move(generated_video_path, new_video_path)
     print('New generated video path:', new_video_path)
 
     try:
         print('x')
+        return {
+    "status": "success",
+    "message": "Script execution completed successfully.",
+    "video_path": new_video_path,  # Provide a path or a URL to access the generated video
+    "job_id": job_id,
+    "user_id": user_id
+}
     except subprocess.CalledProcessError as e:
         print(f"Script execution failed: {e}")
+        return {
+        "status": "error",
+        "message": f"Script execution failed: {e}",
+        "job_id": job_id,
+        "user_id": user_id
+    }
     except FileNotFoundError as e:
         print(f"Failed to execute script, file not found: {e}")
+        return {
+        "status": "error",
+        "message": f"Script execution failed: {e}",
+        "job_id": job_id,
+        "user_id": user_id
+    }
+    
+    
 
 
 # Function to generate additional questions using OpenAI's API
@@ -268,7 +338,11 @@ async def process_complete_job(background_tasks: BackgroundTasks,job_id: int, us
   
     meeting_url = f"{frontend_base_url}/video?job_id={job_id}&user_id={user_id}"
 
-    background_tasks.add_task(execute_script, result_dir, job_id, user_id)
+    # background_tasks.add_task(execute_script, result_dir, job_id, user_id)
+    task = execute_script.delay(result_dir, job_id, user_id)
+    print(f'Task {task.id} scheduled')
+
+
     # Assuming the video is now saved in `result_dir`
     
     print('video url',meeting_url)

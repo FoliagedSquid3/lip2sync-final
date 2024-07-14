@@ -11,6 +11,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
   const [recordedChunks, setRecordedChunks] = useState([]);
   const [isRecordingComplete, setIsRecordingComplete] = useState(false);
   const mediaRecorderRef = useRef(null);
+  const [isUploading, setIsUploading] = useState(false);
   const navigate = useNavigate();
   const REACT_APP_API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -26,7 +27,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
         onVideoEnd();
       }
       videoElement.pause();
-      videoElement.currentTime = 0;
+      //videoElement.currentTime = 0;
     };
 
     videoElement.addEventListener("ended", handleEnded);
@@ -111,6 +112,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
       console.error("No recorded chunks to upload");
       return;
     }
+    setIsUploading(true);
 
     const blob = new Blob(recordedChunks, { type: "video/webm" });
     console.log("Uploading Blob size:", blob.size);
@@ -130,7 +132,9 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
       if (response.ok) {
         const data = await response.json();
         console.log("File uploaded successfully:", data.file_path);
-        navigate("/thankyou");
+        //navigate("/thankyou");
+        //setIsUploading(false);
+        window.location.href = `https://app.timetomeet.ai/meeting-finished/${jobId}/${userId}`; // Immediate redirection
       } else {
         throw new Error("Failed to upload file");
       }
@@ -148,53 +152,61 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <div className="flex justify-center items-center w-full">
-        {videoSrc && <video
-          ref={videoRef}
-          id="video"
-          className="w-full h-auto" // Ensures video takes up full width and adjusts height automatically
-          autoPlay
-          style={{ maxWidth: '60vw', maxHeight: '100vh' }} // Ensures video doesn't exceed view width or height
-        >
-          <source src={videoSrc} type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>}
-      </div>
-      <div className="flex justify-between mt-4 space-x-4">
-        <button
-          onClick={handleMute}
-          className="bg-gray-100 hover:bg-gray-300 text-black font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors flex items-center"
-        >
-          <FontAwesomeIcon icon={isMuted ? faVolumeUp : faVolumeMute} className="mr-2" />
-          {isMuted ? "Unmute" : "Mute"}
-        </button>
-        <button
-          onClick={handlePause}
-          className="bg-gray-100 hover:bg-gray-300 text-black font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors flex items-center"
-        >
-          <FontAwesomeIcon icon={isPaused ? faPlay : faPause} className="mr-2" />
-          {isPaused ? "Play" : "Pause"}
-        </button>
-        {capturing ? (
-          <button
-            onClick={handleStopCaptureClick}
-            className="bg-red-300 hover:bg-red-400 text-black font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors flex items-center"
-          >
-            <FontAwesomeIcon icon={faStop} className="mr-2" />
-            Leave Meeting
-          </button>
-        ) : (
-          isRecordingComplete && (
-            <button
-              onClick={handleUploadClick}
-              className="bg-blue-300 hover:bg-blue-400 text-black font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors flex items-center"
+      {isUploading ? (
+        <div className="loader-overlay">
+          <div className="loader text-4xl">Please wait while your recording is processed.</div>
+        </div>
+      ) : (
+        <>
+          <div className="flex justify-center items-center w-full">
+            {videoSrc && <video
+              ref={videoRef}
+              id="video"
+              className="w-full h-auto" // Ensures video takes up full width and adjusts height automatically
+              autoPlay
+              style={{ maxWidth: '60vw', maxHeight: '100vh' }} // Ensures video doesn't exceed view width or height
             >
-              <FontAwesomeIcon icon={faUpload} className="mr-2" />
-              Upload Recording
+              <source src={videoSrc} type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>}
+          </div>
+          <div className="flex justify-between mt-4 space-x-4">
+            <button
+              onClick={handleMute}
+              className="bg-gray-100 hover:bg-gray-300 text-black font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors flex items-center"
+            >
+              <FontAwesomeIcon icon={isMuted ? faVolumeUp : faVolumeMute} className="mr-2" />
+              {isMuted ? "Unmute" : "Mute"}
             </button>
-          )
-        )}
-      </div>
+            <button
+              onClick={handlePause}
+              className="bg-gray-100 hover:bg-gray-300 text-black font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors flex items-center"
+            >
+              <FontAwesomeIcon icon={isPaused ? faPlay : faPause} className="mr-2" />
+              {isPaused ? "Play" : "Pause"}
+            </button>
+            {capturing ? (
+              <button
+                onClick={handleStopCaptureClick}
+                className="bg-red-300 hover:bg-red-400 text-black font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors flex items-center"
+              >
+                <FontAwesomeIcon icon={faStop} className="mr-2" />
+                Leave Meeting
+              </button>
+            ) : (
+              isRecordingComplete && (
+                <button
+                  onClick={handleUploadClick}
+                  className="bg-blue-300 hover:bg-blue-400 text-black font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors flex items-center"
+                >
+                  <FontAwesomeIcon icon={faUpload} className="mr-2" />
+                  Upload Recording
+                </button>
+              )
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 };

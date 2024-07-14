@@ -27,7 +27,7 @@ async def upload_video(file: UploadFile = File(...), job_id: int = Form(...), us
         # Create a unique filename
         #timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         #original_filename = file.filename
-        filename = f"{job_id}_{user_id}mp4."
+        filename = f"{job_id}_{user_id}.webm"
         # Save the file with the new unique filename
         file_location = os.path.join(RECORDING_DIR, filename)
         with open(file_location, "wb+") as file_object:
@@ -138,7 +138,7 @@ async def review_recording(job_id: int, user_id: int):
         raise HTTPException(status_code=404, detail="Recording file not found.")
 
     public_file_path = copy_to_public(filename)
-    public_url = f"http://{os.getenv('FRONTEND_BASE_URL')}/public/{filename}"
+    public_url = f"{os.getenv('HTTP_FRONTEND_BASE_URL')}/{filename}"
 
     # Assuming transcription and analysis functions are defined elsewhere
     transcript = transcribe_audio(file_path)
