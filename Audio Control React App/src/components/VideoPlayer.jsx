@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faVolumeMute, faVolumeUp, faPause, faPlay, faStop, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faVolumeMute, faVolumeUp, faPause, faPlay, faUpload } from '@fortawesome/free-solid-svg-icons';
 
 const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
   const videoRef = useRef(null);
@@ -9,104 +8,72 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
   const [isPaused, setIsPaused] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [recordedChunks, setRecordedChunks] = useState([]);
-  const [isRecordingComplete, setIsRecordingComplete] = useState(false);
   const mediaRecorderRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
-  const navigate = useNavigate();
-  const REACT_APP_API_URL = process.env.REACT_APP_BACKEND_URL;
 
   useEffect(() => {
     const videoElement = videoRef.current;
 
-    if (videoElement === null) {
-      return
-    }
+    if (!videoElement) return;
+
     const handleEnded = () => {
       console.log("Video playback ended");
-      if (onVideoEnd) {
-        onVideoEnd();
-      }
+      onVideoEnd && onVideoEnd();
       videoElement.pause();
-      //videoElement.currentTime = 0;
     };
 
     videoElement.addEventListener("ended", handleEnded);
-
-    return () => {
-      videoElement.removeEventListener("ended", handleEnded);
-    };
-  }, [onVideoEnd, videoSrc]);
+    return () => videoElement.removeEventListener("ended", handleEnded);
+  }, [onVideoEnd]);
 
   const handleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !videoRef.current.muted;
-      setIsMuted(videoRef.current.muted);
+    const { current } = videoRef;
+    if (current) {
+      current.muted = !current.muted;
+      setIsMuted(current.muted);
     }
   };
 
   const handlePause = () => {
-    if (videoRef.current) {
-      if (videoRef.current.paused) {
-        videoRef.current.play();
+    const { current } = videoRef;
+    if (current) {
+      if (current.paused) {
+        current.play();
         setIsPaused(false);
       } else {
-        videoRef.current.pause();
+        current.pause();
         setIsPaused(true);
       }
     }
   };
 
-  const toggleFullScreen = () => {
-    const videoElement = videoRef.current;
-    if (!document.fullscreenElement) {
-      videoElement.requestFullscreen().catch(err => {
-        alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-      });
-    } else {
-      document.exitFullscreen();
-    }
-  };
-
   const handleStartCaptureClick = useCallback(() => {
     setCapturing(true);
-    navigator.mediaDevices
-      .getUserMedia({
-        video: { width: 320, height: 180, facingMode: "user" },
-        audio: true,
-      })
-      .then((stream) => {
-        mediaRecorderRef.current = new MediaRecorder(stream, {
-          mimeType: "video/webm",
-        });
-        mediaRecorderRef.current.addEventListener("dataavailable", handleDataAvailable);
-        mediaRecorderRef.current.start();
-      })
-      .catch((err) => {
-        console.error("Error accessing webcam:", err);
+    navigator.mediaDevices.getUserMedia({
+      video: { width: 320, height: 180, facingMode: "user" },
+      audio: true,
+    }).then(stream => {
+      mediaRecorderRef.current = new MediaRecorder(stream, {
+        mimeType: "video/webm"
       });
+      mediaRecorderRef.current.addEventListener("dataavailable", handleDataAvailable);
+      mediaRecorderRef.current.start();
+    }).catch(err => console.error("Error accessing webcam:", err));
   }, []);
 
   const handleDataAvailable = useCallback(({ data }) => {
     if (data.size > 0) {
-      setRecordedChunks((prev) => [...prev, data]);
-    }
-  }, []);
-
-  const handleStopCaptureClick = useCallback(() => {
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-      setCapturing(false);
-      setIsRecordingComplete(true);
+      setRecordedChunks(prev => [...prev, data]);
     }
   }, []);
 
   const handleUploadClick = useCallback(async () => {
-    handleStopCaptureClick();
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
+    setCapturing(false);
+
     const videoElement = document.getElementById("video");
-    if (videoElement) {
-      videoElement.pause(); // Ensure the video is paused
-    }
+    videoElement && videoElement.pause(); // Ensure the video is paused
 
     if (recordedChunks.length === 0) {
       console.error("No recorded chunks to upload");
@@ -124,7 +91,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
       formData.append("user_id", userId);
       formData.append("user_name", userName);
 
-      const response = await fetch(`${REACT_APP_API_URL}/upload`, {
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/upload`, {
         method: "POST",
         body: formData,
       });
@@ -132,23 +99,19 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
       if (response.ok) {
         const data = await response.json();
         console.log("File uploaded successfully:", data.file_path);
-        //navigate("/thankyou");
-        //setIsUploading(false);
-        window.location.href = `https://app.timetomeet.ai/meeting-finished/${jobId}/${userId}`; // Immediate redirection
+        window.location.href = `https://app.timetomeet.ai/meeting-finished/${jobId}/${userId}`;
       } else {
         throw new Error("Failed to upload file");
       }
     } catch (error) {
       console.error("Error uploading file:", error);
     }
-  }, [recordedChunks, navigate]);
+  }, [recordedChunks, jobId, userId, userName]);
 
   useEffect(() => {
     handleStartCaptureClick();
-    return () => {
-      handleStopCaptureClick();
-    };
-  }, [handleStartCaptureClick, handleStopCaptureClick]);
+    return () => mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
+  }, [handleStartCaptureClick]);
 
   return (
     <div className="flex flex-col items-center justify-center">
@@ -162,48 +125,27 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
             {videoSrc && <video
               ref={videoRef}
               id="video"
-              className="w-full h-auto" // Ensures video takes up full width and adjusts height automatically
+              className="w-full h-auto"
               autoPlay
-              style={{ maxWidth: '60vw', maxHeight: '100vh' }} // Ensures video doesn't exceed view width or height
+              style={{ maxWidth: '60vw', maxHeight: '100vh' }}
             >
               <source src={videoSrc} type="video/mp4" />
               Your browser does not support the video tag.
             </video>}
           </div>
           <div className="flex justify-between mt-4 space-x-4">
-            <button
-              onClick={handleMute}
-              className="bg-gray-100 hover:bg-gray-300 text-black font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors flex items-center"
-            >
+            <button onClick={handleMute} className="bg-gray-100 hover:bg-gray-300 text-black font-bold py-2 px-4 rounded">
               <FontAwesomeIcon icon={isMuted ? faVolumeUp : faVolumeMute} className="mr-2" />
               {isMuted ? "Unmute" : "Mute"}
             </button>
-            <button
-              onClick={handlePause}
-              className="bg-gray-100 hover:bg-gray-300 text-black font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors flex items-center"
-            >
+            <button onClick={handlePause} className="bg-gray-100 hover:bg-gray-300 text-black font-bold py-2 px-4 rounded">
               <FontAwesomeIcon icon={isPaused ? faPlay : faPause} className="mr-2" />
               {isPaused ? "Play" : "Pause"}
             </button>
-            {capturing ? (
-              <button
-                onClick={handleStopCaptureClick}
-                className="bg-red-300 hover:bg-red-400 text-black font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors flex items-center"
-              >
-                <FontAwesomeIcon icon={faStop} className="mr-2" />
-                Leave Meeting
-              </button>
-            ) : (
-              isRecordingComplete && (
-                <button
-                  onClick={handleUploadClick}
-                  className="bg-blue-300 hover:bg-blue-400 text-black font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors flex items-center"
-                >
-                  <FontAwesomeIcon icon={faUpload} className="mr-2" />
-                  Upload Recording
-                </button>
-              )
-            )}
+            <button onClick={handleUploadClick} className="bg-red-300 hover:bg-red-400 text-black font-bold py-2 px-4 rounded">
+              <FontAwesomeIcon icon={faUpload} className="mr-2" />
+              Leave Meeting
+            </button>
           </div>
         </>
       )}

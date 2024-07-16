@@ -11,6 +11,7 @@ import openai
 import base64
 from pathlib import Path
 import shutil
+from .routes import get_job_details_endpoint
 
 load_dotenv()
 
@@ -96,25 +97,39 @@ def transcribe_audio(file_path):
     except sr.RequestError as e:
         return f"Could not request results from Google Speech Recognition service; {e}"
 
-async def analyze_answers(transcript):
-    """Analyzes the transcript to determine if answers are correct using OpenAI's Chat model."""
+async def analyze_answers(transcript, questions):
+    """Analyzes each answer by directly extracting from the transcript and assigns a score based on its relevance to the corresponding question using OpenAI API."""
     openai_api_key = os.getenv('OPENAI_KEY')
     openai.api_key = openai_api_key
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",  # Make sure to use the correct model here
-            messages=[
-                {"role": "system", "content": "You are an assistant that evaluates responses in a job interview based on technical accuracy and relevance."},
-                {"role": "user", "content": transcript}
-            ],
-            temperature=0.7,  # Adjust as necessary for creativity or strictness
-            max_tokens=200,
-            stop=None
-        )
-        return response.choices[0].message['content'].strip()  # Make sure to access the content correctly
-    except Exception as e:
-        return f"Failed to analyze answers: {str(e)}"
-
+    results = []
+    
+    for question in questions:
+        try:
+            # Adjusted prompt to emphasize direct extraction from the transcript without additional interpretation
+            prompt = f"Transcript: \"{transcript}\"\nQuestion: \"{question}\"\nExtract the answer directly from the transcript if present and assign a relevance score from 0 to 100 based on direct match."
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": prompt}
+                ],
+                temperature=0.3,  # Lower temperature to encourage less creative responses
+                max_tokens=250
+            )
+            full_response = response.choices[0].message['content'].strip()
+            
+            # Extract and assign score
+            if "Relevance score:" in full_response:
+                answer, score_part = full_response.split("Relevance score:")
+                score = int(score_part.split()[0])
+            else:
+                answer = full_response if full_response else "No relevant answer found."
+                score = 0
+            
+            results.append({'question': question, 'answer': answer, 'score': score})
+        except Exception as e:
+            results.append({'question': question, 'answer': f"Failed to analyze answer due to error: {str(e)}", 'score': 0})
+    
+    return results
 
 PUBLIC_DIR = os.getenv('PUBLIC_DIR')  # Ensure this environment variable is set to your public folder path
 
@@ -131,6 +146,10 @@ frontend_base_url=os.getenv('FRONTEND_BASE_URL')
 @router.get("/jobs/{job_id}/review/{user_id}")
 async def review_recording(job_id: int, user_id: int):
     """Fetches and reviews a job interview recording, making it available in a public folder."""
+
+    job_details = await get_job_details_endpoint(job_id, user_id)
+    questions = job_details['questions']
+
     filename = f"{job_id}_{user_id}.mp4"
     file_path = Path(RECORDING_DIR) / filename
 
@@ -142,7 +161,7 @@ async def review_recording(job_id: int, user_id: int):
 
     # Assuming transcription and analysis functions are defined elsewhere
     transcript = transcribe_audio(file_path)
-    analysis = await analyze_answers(transcript)
+    analysis = await analyze_answers(transcript,questions)
 
     return {
         "transcript": transcript,
