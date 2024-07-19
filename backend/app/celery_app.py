@@ -5,5 +5,6 @@ app = Celery(
     'app',  # Name of the Celery application
     broker='redis://localhost:6379/0',  # Redis broker URL
     backend='redis://localhost:6379/0',  # Redis backend URL for result storage
-    include=['api.routes']
+    include=['api.routes',
+            'api.recording_upload']
 )

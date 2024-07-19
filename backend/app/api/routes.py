@@ -83,9 +83,11 @@ def generate_speech(questions_text, job_id):
     filename = f"{job_id}.wav"
     wav_path = os.path.join(output_dir, filename)
 
+    initial_silence = AudioSegment.silent(duration=3000)
+
     silence = AudioSegment.silent(duration=3000)
 
-    combined = AudioSegment.empty()
+    combined = initial_silence
 
     # Generate and concatenate each question with a 5-second silence
     for question in questions_text:
@@ -194,7 +196,7 @@ async def async_execute_script(result_dir, job_id, user_id):
         "--ref_eyeblink", os.path.abspath(os.path.join(script_dir, 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
         "--source_image", image_path,
         "--result_dir", temp_output,
-        "--still", "--preprocess", "full" #"--enhancer", "gfpgan"
+        "--still", "--preprocess", "full", "--enhancer", "gfpgan"
     ]
     result_dir = str(result_dir)  # Ensure result_dir is a string
     job_id = str(job_id)         # Ensure job_id is a string
@@ -291,11 +293,24 @@ async def fetch_job_details(job_id: int, user_id: int):
 
             candidate_name = applicant_data['user']['name']  # Fetching candidate name
             interview_timestamp = applicant_data.get('interview_timestamp')
+            
             questions = job.get('questions', [])  # Parsing questions list
+            print('questions',questions)
+            if isinstance(questions, str):
+                questions = questions.strip('[]').replace('"', '').split(',')
+            questions = [q.strip() for q in questions if q.strip()]
+            
+            introduction = job.get('introduction', '')
+            print('introduction',introduction)
+            ending_lines = job.get('ending_lines', '')
+            print('ending lines',ending_lines)
 
-            # Log the avatar URL and candidate name to verify correct data fetching
-            print("Avatar Image URL:", avatar_img)
-            print("Candidate Name:", candidate_name)
+
+            if introduction:
+                questions.insert(0, introduction)
+
+            if ending_lines:
+                questions.append(ending_lines)
 
             # Return all relevant data
             return avatar_img, questions, interview_timestamp, candidate_name
@@ -309,26 +324,16 @@ async def fetch_job_details(job_id: int, user_id: int):
 async def get_job_details_endpoint(job_id: int, user_id: int):
     try:
         avatar_img, questions, interview_timestamp, candidate_name = await fetch_job_details(job_id, user_id)
-    except ValueError as e:  # Handle specific exceptions or use HTTPException
+    except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-    if isinstance(questions, str):
-        questions = questions.strip('[]').replace('"', '').split(',')
-    questions = [q.strip() for q in questions if q.strip()]
-
-    # detailed_questions = await fetch_additional_questions(questions)
-    # questions.extend(detailed_questions)  # Extending with direct questions
-
-    if not questions:
-        raise HTTPException(status_code=404, detail="No questions found for this job")
-
+    # Provide the output directly since `questions` is already handled in `fetch_job_details`
     return {
         "candidate_name": candidate_name,
         "interview_timestamp": interview_timestamp,
         "avatar_img": avatar_img,
         "questions": questions
     }
-
 
 
 frontend_base_url=os.getenv('FRONTEND_BASE_URL')

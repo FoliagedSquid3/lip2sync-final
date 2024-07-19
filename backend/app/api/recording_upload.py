@@ -12,50 +12,112 @@ import base64
 from pathlib import Path
 import shutil
 from .routes import get_job_details_endpoint
+from celery import shared_task
+from requests import get
+import asyncio
+import json
+from sqlalchemy.sql import select
+from backend.app.db import SessionLocal, jobs
+import whisper
+
 
 load_dotenv()
 
 router = APIRouter()
 
+
+
 # Ensure the upload folder exists
 RECORDING_DIR = os.getenv('RECORDING_DIR')
 os.makedirs(RECORDING_DIR, exist_ok=True)
 
-@router.post("/upload")
-async def upload_video(file: UploadFile = File(...), job_id: int = Form(...), user_id: str = Form(...),  user_name: str = Form(...)):
+@shared_task
+def process_video(file_location, job_id, user_id, output_filename,user_name):
+    output_filename = file_location.replace('.webm', '.mp4')
+    print('in queue')
     try:
-        print(job_id)
-        # Create a unique filename
-        #timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        #original_filename = file.filename
+        ffmpeg.input(file_location).output(output_filename, vcodec='libx264', acodec='aac', strict='experimental').run(overwrite_output=True)
+        os.remove(file_location)  # Remove the original .webm file after conversion
+    except Exception as e:
+        print('Error converting file:', e)
+
+    loop = asyncio.get_event_loop()
+    job_details = loop.run_until_complete(get_job_details_endpoint(job_id, user_id))
+    questions = job_details['questions']
+
+    filename = f"{job_id}_{user_id}.mp4"
+    file_path = Path(RECORDING_DIR) / filename
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Recording file not found.")
+
+    public_file_path = copy_to_public(filename)
+    public_url = f"{os.getenv('HTTP_FRONTEND_BASE_URL')}/{filename}"
+
+    # Assuming transcription and analysis functions are defined elsewhere
+    transcript = transcribe_audio(file_path)
+    analysis = analyze_answers(transcript,questions)
+    print('transcript',transcript)
+    print('analysis',analysis)
+    print('job id',job_id)
+    print('user id',user_id)
+    print('recording',output_filename)
+
+    db = SessionLocal()
+    query = jobs.insert().values(
+        job_id=job_id,
+        user_id=user_id,
+        user_name=user_name,
+        recording=output_filename,
+        transcript=transcript,
+        analysis=json.dumps(analysis)  # Assuming analysis is a dictionary
+    )
+
+    print("Preparing to insert data into the database.")
+    try:
+        db.execute(query)
+        db.commit()
+        print("Data inserted successfully.")
+    except Exception as e:
+        print("Exception during database operation:", e)
+        db.rollback()  # Rollback in case of an issue
+        print("Exception during database operation:", e)
+    finally:
+        db.close()  # Close the session
+
+    api_url = f"https://app.timetomeet.ai/fetch-meeting/{job_id}/{user_id}"
+    print('api_url',api_url)
+    try:
+        response = get(api_url)
+        print('response',response)
+        response.raise_for_status()  # will raise an exception for HTTP error codes
+    except Exception as e:
+        print(f"Failed to notify API: {e}")
+        return {"message": f"Failed to notify API: {e}", "status": "failed"}
+
+    return {
+            "message": "File converted and saved successfully",
+            "file_path": output_filename,
+        }
+    # return JSONResponse(content={"message": "File converted and saved successfully", "file_path": output_filename}, status_code=200)
+
+
+@router.post("/upload")
+async def upload_video(file: UploadFile = File(...), job_id: int = Form(...), user_id: int = Form(...), user_name: str = Form(...)):
+    try:
+        # Create a unique filename and save the file temporarily
         filename = f"{job_id}_{user_id}.webm"
-        # Save the file with the new unique filename
         file_location = os.path.join(RECORDING_DIR, filename)
         with open(file_location, "wb+") as file_object:
             file_object.write(await file.read())
 
-        # Convert to MP4 and overwrite the original file
-        output_filename = file_location.replace('.webm', '.mp4')
-        try:
-            ffmpeg.input(file_location).output(output_filename, vcodec='libx264', acodec='aac', strict='experimental').run(overwrite_output=True)
-            os.remove(file_location)  # Remove the original .webm file after conversion
-        except Exception as e:
-            print('Error converting file:', e)
-
-        # Save details to the database
-        query = jobs.insert().values(
-            job_id=int(job_id),
-            user_id=int(user_id),
-            user_name=user_name,
-            recording=output_filename
-        )
-        await database.execute(query)
-
-        return JSONResponse(content={"message": "File converted and saved successfully", "file_path": output_filename}, status_code=200)
+        # Dispatch the video processing task
+        print('going to run queue')
+        task = process_video.delay(file_location, job_id, user_id, filename, user_name)
+        return JSONResponse(content={"message": "Upload received, processing started", "task_id": task.id}, status_code=202)
 
     except Exception as e:
         return JSONResponse(content={"message": str(e)}, status_code=500)
-
 
 def convert_to_wav(file_path):
     """Converts an MP4 file to WAV format."""
@@ -81,6 +143,10 @@ def transcribe_audio(file_path):
     """Transcribes audio from a given file path."""
     # Convert file_path to a Path object if it's not already one
     file_path = Path(file_path)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    model = whisper.load_model('large', device = device)
+
 
     if file_path.suffix == ".mp4":
         file_path = convert_to_wav(file_path)  # Convert MP4 to WAV before transcription
@@ -89,15 +155,13 @@ def transcribe_audio(file_path):
     with sr.AudioFile(str(file_path)) as source:  # sr.AudioFile expects a string path
         audio_data = recognizer.record(source)
 
-    try:
-        transcript = recognizer.recognize_google(audio_data)
-        return transcript
-    except sr.UnknownValueError:
-        return "Transcription failed due to unrecognizable speech."
-    except sr.RequestError as e:
-        return f"Could not request results from Google Speech Recognition service; {e}"
+    result = model.transcribe(str(file_path))
 
-async def analyze_answers(transcript, questions):
+    transcript = result["text"]
+    return transcript
+
+
+def analyze_answers(transcript, questions):
     """Analyzes each answer by directly extracting from the transcript and assigns a score based on its relevance to the corresponding question using OpenAI API."""
     openai_api_key = os.getenv('OPENAI_KEY')
     openai.api_key = openai_api_key
@@ -133,38 +197,50 @@ async def analyze_answers(transcript, questions):
 
 PUBLIC_DIR = os.getenv('PUBLIC_DIR')  # Ensure this environment variable is set to your public folder path
 
-def copy_to_public(file_name):
-    """Copy a file from the recording directory to the public directory."""
-    source = Path(RECORDING_DIR) / file_name
-    destination = Path(PUBLIC_DIR) / file_name
-    if not destination.exists():
-        shutil.copy(source, destination)
-    return destination
+def copy_to_public(filename: str) -> str:
+    src_path = Path(RECORDING_DIR) / filename
+    dest_path = Path(PUBLIC_DIR) / filename
+    print('src path',src_path)
+    print('dest path',dest_path)
+    try:
+        shutil.copyfile(src_path, dest_path)
+        print(f"File copied from {src_path} to {dest_path}")
+        
+        # Verify file integrity
+        if src_path.stat().st_size != dest_path.stat().st_size:
+            raise HTTPException(status_code=500, detail="File size mismatch after copying")
+            
+    except Exception as e:
+        print(f"Error copying file: {e}")
+        raise HTTPException(status_code=500, detail="Error copying file to public directory")
+    
+    return str(dest_path)
 
 frontend_base_url=os.getenv('FRONTEND_BASE_URL')
 
 @router.get("/jobs/{job_id}/review/{user_id}")
 async def review_recording(job_id: int, user_id: int):
     """Fetches and reviews a job interview recording, making it available in a public folder."""
-
-    job_details = await get_job_details_endpoint(job_id, user_id)
-    questions = job_details['questions']
+    # Construct the select query using direct column references
+    query = select(jobs.c.transcript, jobs.c.analysis).where(
+            (jobs.c.job_id == job_id) & (jobs.c.user_id == user_id)
+        )
+    result = await database.fetch_one(query)
+    transcript = result['transcript']
+    analysis = json.loads(result['analysis'])  # Convert JSON string back to dictionary
 
     filename = f"{job_id}_{user_id}.mp4"
-    file_path = Path(RECORDING_DIR) / filename
+    print('filename',filename)
+    # file_path = Path(RECORDING_DIR) / filename
+    # print('filepath',file_path)
+    # if not file_path.exists():
+    #     raise HTTPException(status_code=404, detail="Recording file not found.")
 
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Recording file not found.")
-
-    public_file_path = copy_to_public(filename)
+    # public_file_path = copy_to_public(filename)
     public_url = f"{os.getenv('HTTP_FRONTEND_BASE_URL')}/{filename}"
-
-    # Assuming transcription and analysis functions are defined elsewhere
-    transcript = transcribe_audio(file_path)
-    analysis = await analyze_answers(transcript,questions)
-
+    print('public_url',public_url)
     return {
         "transcript": transcript,
         "analysis": analysis,
-        "download_url": public_url  # URL to download the audio file
+        "download_url": public_url
     }
