@@ -42,6 +42,12 @@ def process_video(file_location, job_id, user_id, output_filename,user_name):
         print('Error converting file:', e)
 
     loop = asyncio.get_event_loop()
+    print('loop',loop)
+    if loop.is_closed():
+        print("Event loop is closed, creating a new one")
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+ 
     job_details = loop.run_until_complete(get_job_details_endpoint(job_id, user_id))
     questions = job_details['questions']
 
