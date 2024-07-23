@@ -197,7 +197,7 @@ async def async_execute_script(result_dir, job_id, user_id):
         "--ref_eyeblink", os.path.abspath(os.path.join(script_dir, 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
         "--source_image", image_path,
         "--result_dir", temp_output,
-        "--still", "--preprocess", "full"#, "--enhancer", "gfpgan"
+        "--still", "--preprocess", "full", "--enhancer", "gfpgan"
     ]
     result_dir = str(result_dir)  # Ensure result_dir is a string
     job_id = str(job_id)         # Ensure job_id is a string
