@@ -243,6 +243,8 @@ async def review_recording(job_id: int, user_id: int):
     #     raise HTTPException(status_code=404, detail="Recording file not found.")
 
     # public_file_path = copy_to_public(filename)
+    frontend_base_url=os.getenv('FRONTEND_BASE_URL')
+    print('frontend base url',frontend_base_url)
     public_url = f"{os.getenv('FRONTEND_BASE_URL')}/media/{filename}"
     print('public_url',public_url)
     return {
