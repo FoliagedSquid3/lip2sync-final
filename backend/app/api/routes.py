@@ -414,7 +414,7 @@ async def send_video(request: Request):
     user_id = str(data['user_id']) + ".mp4"
     print('user id',user_id)
     video_path = os.path.join('result_dir', job_id, user_id)
-
+    print('video path',video_path)
     if not os.path.exists(video_path):
         raise HTTPException(status_code=404, detail="Video not found")
 
