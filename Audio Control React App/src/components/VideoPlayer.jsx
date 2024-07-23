@@ -138,10 +138,10 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
               <FontAwesomeIcon icon={isMuted ? faVolumeUp : faVolumeMute} className="mr-2" />
               {isMuted ? "Unmute" : "Mute"}
             </button>
-            <button onClick={handlePause} className="bg-gray-100 hover:bg-gray-300 text-black font-bold py-2 px-4 rounded">
+            {/* <button onClick={handlePause} className="bg-gray-100 hover:bg-gray-300 text-black font-bold py-2 px-4 rounded">
               <FontAwesomeIcon icon={isPaused ? faPlay : faPause} className="mr-2" />
               {isPaused ? "Play" : "Pause"}
-            </button>
+            </button> */}
             <button onClick={handleUploadClick} className="bg-red-300 hover:bg-red-400 text-black font-bold py-2 px-4 rounded">
               <FontAwesomeIcon icon={faUpload} className="mr-2" />
               Leave Meeting
