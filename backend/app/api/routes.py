@@ -19,7 +19,7 @@ from pydantic import BaseModel
 import glob
 import shutil
 from fastapi import BackgroundTasks
-from backend.app.celery_app import app as celery_app
+from celery_app import app as celery_app
 import celery
 from celery import shared_task
 import asyncio

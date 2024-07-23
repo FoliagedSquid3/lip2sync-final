@@ -17,7 +17,7 @@ from requests import get
 import asyncio
 import json
 from sqlalchemy.sql import select
-from backend.app.db import SessionLocal, jobs
+from db import SessionLocal, jobs
 import whisper
 import torch
 
