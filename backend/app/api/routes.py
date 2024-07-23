@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException,Depends, status, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse,StreamingResponse
 from typing import Any
 import httpx
 import os
@@ -369,39 +369,76 @@ async def process_complete_job(background_tasks: BackgroundTasks,job_id: int, us
         "video_url": meeting_url,
     }
 
+# @router.post("/send_video")
+# async def send_video(request: SendVideo):
+#     try:
+#         job_id = str(request.job_id)
+#         user_id = str(request.user_id) + ".mp4"
+#         video_path = os.path.join(result_dir, job_id, user_id)
+        
+#         # Temporary path for the encoded video
+#         temp_video_path = os.path.join(result_dir, job_id, f"temp_{user_id}")
+        
+#         # FFmpeg command for encoding
+#         command = [
+#             'ffmpeg',
+#             '-i', video_path,  # Input file
+#             '-c:v', 'libx264',  # Video codec to H.264
+#             '-c:a', 'aac',      # Audio codec to AAC
+#             '-strict', 'experimental',  # Allow experimental codecs for compatibility
+#             '-b:a', '192k',     # Audio bitrate
+#             '-y',               # Overwrite output files without asking
+#             temp_video_path     # Output to temporary file
+#         ]
+
+#         # Execute the FFmpeg command
+#         subprocess.run(command, check=True)
+
+#         # If encoding is successful, replace the original file with the encoded one
+#         shutil.move(temp_video_path, video_path)  # This will overwrite the original file
+
+#         print(f"Video path (overwritten): {video_path}")
+#         return FileResponse(video_path, media_type='video/mp4')
+#     except subprocess.CalledProcessError as e:
+#         print(f"Error during video encoding: {str(e)}")
+#         raise HTTPException(status_code=500, detail="Video encoding failed")
+#     except Exception as e:
+#         traceback.print_exc()
+#         raise HTTPException(status_code=500, detail="Failed to process video")
+
 @router.post("/send_video")
-async def send_video(request: SendVideo):
-    try:
-        job_id = str(request.job_id)
-        user_id = str(request.user_id) + ".mp4"
-        video_path = os.path.join(result_dir, job_id, user_id)
-        
-        # Temporary path for the encoded video
-        temp_video_path = os.path.join(result_dir, job_id, f"temp_{user_id}")
-        
-        # FFmpeg command for encoding
-        command = [
-            'ffmpeg',
-            '-i', video_path,  # Input file
-            '-c:v', 'libx264',  # Video codec to H.264
-            '-c:a', 'aac',      # Audio codec to AAC
-            '-strict', 'experimental',  # Allow experimental codecs for compatibility
-            '-b:a', '192k',     # Audio bitrate
-            '-y',               # Overwrite output files without asking
-            temp_video_path     # Output to temporary file
-        ]
+async def send_video(request: Request):
+    data = await request.json()
+    print('data',data)
+    job_id = str(data['job_id'])
+    user_id = str(data['user_id']) + ".mp4"
+    print('user id',user_id)
+    video_path = os.path.join('result_dir', job_id, user_id)
 
-        # Execute the FFmpeg command
-        subprocess.run(command, check=True)
+    if not os.path.exists(video_path):
+        raise HTTPException(status_code=404, detail="Video not found")
 
-        # If encoding is successful, replace the original file with the encoded one
-        shutil.move(temp_video_path, video_path)  # This will overwrite the original file
+    # Encode the video
+    temp_video_path = os.path.join('result_dir', job_id, f"temp_{user_id}")
+    command = [
+        'ffmpeg',
+        '-i', video_path,
+        '-c:v', 'libx264',
+        '-c:a', 'aac',
+        '-strict', 'experimental',
+        '-b:a', '192k',
+        '-y',
+        temp_video_path
+    ]
 
-        print(f"Video path (overwritten): {video_path}")
-        return FileResponse(video_path, media_type='video/mp4')
-    except subprocess.CalledProcessError as e:
-        print(f"Error during video encoding: {str(e)}")
-        raise HTTPException(status_code=500, detail="Video encoding failed")
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail="Failed to process video")
+    subprocess.run(command, check=True)
+    print('1')
+    shutil.move(temp_video_path, video_path)  # Overwrite the original file
+    print(f"Video path (overwritten): {video_path}")
+    print('2')
+    # Stream the encoded video
+    def iterfile():
+        with open(video_path, mode="rb") as file_like:
+            yield from file_like
+
+    return StreamingResponse(iterfile(), media_type="video/mp4")

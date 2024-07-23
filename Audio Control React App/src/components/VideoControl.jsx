@@ -63,38 +63,74 @@ const VideoControl = () => {
       }
     };
 
+  //   const fetchVideo = async () => {
+  //     try {
+  //       const response = await fetch(`${REACT_APP_API_URL}/send_video`, {
+  //         method: 'POST',
+  //         headers: {
+  //           'Content-Type': 'application/json'
+  //         },
+  //         body: JSON.stringify({ user_id: userIdParam, job_id: jobIdParam })
+  //       });
+  //       if (!response.ok) {
+  //         throw new Error('Video not found');
+  //       }
+  //       const blob = await response.blob();
+  //       const url = URL.createObjectURL(blob);
+  //       setVideoSrc(url);
+  //       setIsLoading(false);
+  //       console.log(`video size ${blob.size}`)
+  //       console.log(`Video temp url ${url}`)
+  //       console.log("Response type:", blob.type); // This should log 'video/mp4'
+  //     } catch (error) {
+  //       console.error('Error fetching video:', error);
+  //     }
+  //   };
 
-    const fetchVideo = async () => {
-      try {
-        const response = await fetch(`${REACT_APP_API_URL}/send_video`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ user_id: userIdParam, job_id: jobIdParam })
-        });
-        if (!response.ok) {
-          throw new Error('Video not found');
-        }
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        setVideoSrc(url);
-        setIsLoading(false);
-        console.log(`video size ${blob.size}`)
-        console.log(`Video temp url ${url}`)
-        console.log("Response type:", blob.type); // This should log 'video/mp4'
-      } catch (error) {
-        console.error('Error fetching video:', error);
+  //   if (jobIdParam && userIdParam) {
+  //     fetchData();
+  //     fetchVideo();
+  //     console.log('fetching video and data')
+  //   } else {
+  //     navigate("/error");
+  //   }
+
+  const fetchVideo = async () => {
+    try {
+      const videoUrl = `${REACT_APP_API_URL}/send_video`;
+      console.log('video url',videoUrl)
+  
+      // Make a POST request to initiate the video streaming.
+      const response = await fetch(videoUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ user_id: userIdParam, job_id: jobIdParam })
+      });
+  
+      if (!response.ok) {
+        throw new Error('Video not found');
       }
-    };
-
-    if (jobIdParam && userIdParam) {
-      fetchData();
-      fetchVideo();
-      console.log('fetching video and data')
-    } else {
-      navigate("/error");
+      console.log('12333')
+      // Directly set the video source to the endpoint URL with necessary parameters.
+      // This approach assumes that the server can handle and authenticate this request properly.
+      setVideoSrc(videoUrl + `?user_id=${userIdParam}&job_id=${jobIdParam}`);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching video:', error);
     }
+  };
+  
+  if (jobIdParam && userIdParam) {
+    fetchData();
+    fetchVideo();
+    console.log('fetching video and data');
+  } else {
+    navigate("/error");
+  }
+
+  
     
 
 
