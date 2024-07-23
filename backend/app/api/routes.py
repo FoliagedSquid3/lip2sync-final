@@ -416,7 +416,9 @@ async def send_video(request: SendVideo):
         raise HTTPException(status_code=404, detail="Video not found")
 
     # Encode the video
-    temp_video_path = os.path.join('result_dir', job_id, f"temp_{user_id}")
+    temp_video_path = os.path.join(result_dir, job_id, f"temp_{user_id}")
+    print('temp_video_path')
+    
     command = [
         'ffmpeg',
         '-i', video_path,
