@@ -408,8 +408,6 @@ async def process_complete_job(background_tasks: BackgroundTasks,job_id: int, us
 
 @router.post("/send_video")
 async def send_video(request: SendVideo):
-    data = await request.json()
-    print('data',data)
     job_id = str(request.job_id)
     user_id = str(request.user_id) + ".mp4"
     video_path = os.path.join(result_dir, job_id, user_id)
