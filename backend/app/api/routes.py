@@ -23,6 +23,7 @@ from backend.app.celery_app import app as celery_app
 import celery
 from celery import shared_task
 import asyncio
+from requests import get
 
 class SendVideo(BaseModel):
     user_id: int | str
@@ -214,6 +215,17 @@ async def async_execute_script(result_dir, job_id, user_id):
     # Rename the video
     shutil.move(generated_video_path, new_video_path)
     print('New generated video path:', new_video_path)
+
+
+    api_url = f"https://app.timetomeet.ai/complete-schedule-meeting/{job_id}/{user_id}"
+    print('api_url',api_url)
+    try:
+        response = get(api_url)
+        print('responsee',response)
+        response.raise_for_status()  # will raise an exception for HTTP error codes
+    except Exception as e:
+        print(f"Failed to notify API: {e}")
+        return {"message": f"Failed to notify API: {e}", "status": "failed"}
 
     try:
         print('x')

@@ -139,7 +139,7 @@ const VideoControl = () => {
 
   const handleUploadButtonClick = () => {
     console.log("Upload button clicked. Navigating to thank you page.");
-    const redirectUrl = `http://app.timetomeet.ai/meeting-finished/${jobId}/${userId}`;
+    const redirectUrl = `https://app.timetomeet.ai/meeting-finished/${jobId}/${userId}`;
     window.location.href = redirectUrl; // Redirect to the external URL
     // navigate("/thankyou");
   };

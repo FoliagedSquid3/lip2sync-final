@@ -19,7 +19,7 @@ import json
 from sqlalchemy.sql import select
 from backend.app.db import SessionLocal, jobs
 import whisper
-
+import torch
 
 load_dotenv()
 
@@ -52,7 +52,7 @@ def process_video(file_location, job_id, user_id, output_filename,user_name):
         raise HTTPException(status_code=404, detail="Recording file not found.")
 
     public_file_path = copy_to_public(filename)
-    public_url = f"{os.getenv('HTTP_FRONTEND_BASE_URL')}/{filename}"
+    public_url = f"{os.getenv('FRONTEND_BASE_URL')}/media/{filename}"
 
     # Assuming transcription and analysis functions are defined elsewhere
     transcript = transcribe_audio(file_path)
