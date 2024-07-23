@@ -20,6 +20,8 @@ from sqlalchemy.sql import select
 from db import SessionLocal, jobs
 import whisper
 import torch
+from sqlalchemy.dialects.sqlite import insert
+
 
 load_dotenv()
 
@@ -70,18 +72,37 @@ def process_video(file_location, job_id, user_id, output_filename,user_name):
     print('recording',output_filename)
 
     db = SessionLocal()
-    query = jobs.insert().values(
-        job_id=job_id,
-        user_id=user_id,
-        user_name=user_name,
-        recording=output_filename,
-        transcript=transcript,
-        analysis=json.dumps(analysis)  # Assuming analysis is a dictionary
-    )
+    # query = jobs.insert().values(
+    #     job_id=job_id,
+    #     user_id=user_id,
+    #     user_name=user_name,
+    #     recording=output_filename,
+    #     transcript=transcript,
+    #     analysis=json.dumps(analysis)  # Assuming analysis is a dictionary
+    # )
+    query = insert(jobs).values(
+    job_id=job_id,
+    user_id=user_id,
+    user_name=user_name,
+    recording=output_filename,
+    transcript=transcript,
+    analysis=json.dumps(analysis)  # Assuming analysis is a dictionary
+)
+    
+    on_conflict_query = query.on_conflict_do_update(
+    index_elements=['job_id', 'user_id'],  # Specify the conflict target as the columns
+    set_={
+        'user_name': query.excluded.user_name,
+        'recording': query.excluded.recording,
+        'transcript': query.excluded.transcript,
+        'analysis': query.excluded.analysis
+    }
+)
 
     print("Preparing to insert data into the database.")
     try:
-        db.execute(query)
+        # db.execute(query)
+        db.execute(on_conflict_query)
         db.commit()
         print("Data inserted successfully.")
     except Exception as e:
