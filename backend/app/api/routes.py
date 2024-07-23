@@ -197,7 +197,7 @@ async def async_execute_script(result_dir, job_id, user_id):
         "--ref_eyeblink", os.path.abspath(os.path.join(script_dir, 'SadTalker', 'examples', 'ref_video', 'WDA_KatieHill_000.mp4')),
         "--source_image", image_path,
         "--result_dir", temp_output,
-        "--still", "--preprocess", "full", "--enhancer", "gfpgan"
+        "--still", "--preprocess", "full"#, "--enhancer", "gfpgan"
     ]
     result_dir = str(result_dir)  # Ensure result_dir is a string
     job_id = str(job_id)         # Ensure job_id is a string
@@ -216,7 +216,7 @@ async def async_execute_script(result_dir, job_id, user_id):
     shutil.move(generated_video_path, new_video_path)
     print('New generated video path:', new_video_path)
     print('trying to resolve encoding timing')
-    temp_video_path = os.path.join(result_dir, job_id, f"temp_{user_id}")
+    temp_video_path = os.path.join(result_dir, job_id, f"temp_{user_id}.mp4")
 
     # FFmpeg command for encoding
     command = [
