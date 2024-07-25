@@ -111,10 +111,11 @@ def generate_speech(questions_text, job_id, model_name, speaker_id=None):
 
     # Generate and concatenate each question with a 5-second silence
     for question in questions_text:
+        temporary_path = 'temp.wav'
         # tts = gTTS(text=question, lang='en')
         tts.tts_to_file(text=question, file_path=temporary_path, speaker=speaker_id)
         # Save the speech to a temporary file
-        temporary_path = 'temp.wav'
+        
         tts.save(temporary_path)
         # Load this temporary file as an AudioSegment
         question_audio = AudioSegment.from_mp3(temporary_path)
