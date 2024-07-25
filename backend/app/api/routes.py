@@ -116,7 +116,6 @@ def generate_speech(questions_text, job_id, model_name, speaker_id=None):
         tts.tts_to_file(text=question, file_path=temporary_path, speaker=speaker_id)
         # Save the speech to a temporary file
         
-        tts.save(temporary_path)
         # Load this temporary file as an AudioSegment
         question_audio = AudioSegment.from_mp3(temporary_path)
         # Concatenate question audio with silence
