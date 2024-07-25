@@ -28,6 +28,9 @@ import re
 from TTS.api import TTS
 import torch
 
+os.environ['PATH'] += os.pathsep + 'C:\\Program Files (x86)\\eSpeak\\command_line'
+print(os.environ['PATH'])
+
 class SendVideo(BaseModel):
     user_id: int | str
     job_id: int | str
