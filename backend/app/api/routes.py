@@ -28,8 +28,7 @@ import re
 from TTS.api import TTS
 import torch
 
-os.environ['PATH'] += os.pathsep + 'C:\\Program Files (x86)\\eSpeak\\command_line'
-print(os.environ['PATH'])
+
 
 class SendVideo(BaseModel):
     user_id: int | str
@@ -85,7 +84,14 @@ def convert_to_png(image: Image.Image, output_path):
     else:
         return None
     
+
+
+
 def generate_speech(questions_text, job_id, model_name, speaker_id=None):
+
+    os.environ['PATH'] += os.pathsep + 'C:\\Program Files (x86)\\eSpeak\\command_line'
+    print(os.environ['PATH'])
+    
     output_dir = output_audio_dir
     filename = f"{job_id}.wav"
     wav_path = os.path.join(output_dir, filename)
