@@ -24,6 +24,7 @@ import celery
 from celery import shared_task
 import asyncio
 from requests import get
+import re
 
 class SendVideo(BaseModel):
     user_id: int | str
@@ -296,10 +297,13 @@ async def fetch_additional_questions(initial_questions):
             frequency_penalty=0.0,
             presence_penalty=0.0
         )
-        
-        # Extracting questions, filtering out any numeric prefixes
+
         messages = response.get('choices', [{}])[0].get('message', {}).get('content', '')
-        detailed_questions = [line.strip() for line in messages.split('\n') if line.strip() and not line.lstrip().split()[0].isdigit()]
+        detailed_questions = [re.sub(r"^\d+\.\s*", "", line.strip()) for line in messages.split('\n') if line.strip()]
+
+        # Extracting questions, filtering out any numeric prefixes
+        # messages = response.get('choices', [{}])[0].get('message', {}).get('content', '')
+        # detailed_questions = [line.strip() for line in messages.split('\n') if line.strip() and not line.lstrip().split()[0].isdigit()]
 
         return detailed_questions
     except Exception as e:
