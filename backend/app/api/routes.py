@@ -90,8 +90,6 @@ def generate_speech(questions_text, job_id, model_name, speaker_id=None):
     # Ensure the output directory exists
     os.makedirs(output_dir, exist_ok=True)
 
-    espeak_path = r'C:\Program Files (x86)\eSpeak\command_line\espeak.exe'
-
     # Load TTS model
     tts = TTS(model_name, progress_bar=False, gpu=torch.cuda.is_available())
 
@@ -103,28 +101,17 @@ def generate_speech(questions_text, job_id, model_name, speaker_id=None):
 
     # Generate and concatenate each question with a 5-second silence
     for question in questions_text:
+        # tts = gTTS(text=question, lang='en')
+        tts.tts_to_file(text=question, file_path=temporary_path, speaker=speaker_id)
+        # Save the speech to a temporary file
         temporary_path = 'temp.wav'
-        command = [espeak_path, '-w', temporary_path, question]
-        subprocess.run(command)
-
+        tts.save(temporary_path)
         # Load this temporary file as an AudioSegment
-        question_audio = AudioSegment.from_wav(temporary_path)
+        question_audio = AudioSegment.from_mp3(temporary_path)
         # Concatenate question audio with silence
         combined += question_audio + silence
         # Optionally, remove the temporary file if you want
         os.remove(temporary_path)
-        
-        # tts = gTTS(text=question, lang='en')
-        # tts.tts_to_file(text=question, file_path=temporary_path, speaker=speaker_id)
-        # # Save the speech to a temporary file
-        # temporary_path = 'temp.wav'
-        # tts.save(temporary_path)
-        # # Load this temporary file as an AudioSegment
-        # question_audio = AudioSegment.from_mp3(temporary_path)
-        # # Concatenate question audio with silence
-        # combined += question_audio + silence
-        # # Optionally, remove the temporary file if you want
-        # os.remove(temporary_path)
 
     # Ensure the output directory exists
     os.makedirs(output_dir, exist_ok=True)
