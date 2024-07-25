@@ -193,7 +193,7 @@ async def async_execute_script(result_dir, job_id, user_id):
     if gender=="Man":
         audio_path = generate_speech(formatted_questions, job_id,model_name,male_speaker_id)  # Assuming this needs the list of questions
         # audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
-        # audio_path = change_pitch(audio_path, -4)
+        audio_path = change_pitch(audio_path, -4)
     else:
         audio_path = generate_speech(formatted_questions, job_id,model_name,female_speaker_id)  # Assuming this needs the list of questions
         #  audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
