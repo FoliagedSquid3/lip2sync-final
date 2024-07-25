@@ -84,8 +84,8 @@ def convert_to_png(image: Image.Image, output_path):
     else:
         return None
     
-# def generate_speech(questions_text, job_id, model_name, speaker_id=None):
-def generate_speech(questions_text, job_id):
+def generate_speech(questions_text, job_id, model_name, speaker_id=None):
+# def generate_speech(questions_text, job_id):
 
     output_dir = output_audio_dir
     filename = f"{job_id}.wav"
@@ -188,14 +188,15 @@ async def async_execute_script(result_dir, job_id, user_id):
     female_speaker_id = "p225"
     male_speaker_id = "p226"  # Example speaker ID
 
+    print('x')
     # Generate speech
     if gender=="Man":
-        # audio_path = generate_speech(formatted_questions, job_id,model_name,male_speaker_id)  # Assuming this needs the list of questions
-        audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
-        audio_path = change_pitch(audio_path, -4)
+        audio_path = generate_speech(formatted_questions, job_id,model_name,male_speaker_id)  # Assuming this needs the list of questions
+        # audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
+        # audio_path = change_pitch(audio_path, -4)
     else:
-        # audio_path = generate_speech(formatted_questions, job_id,model_name,female_speaker_id)  # Assuming this needs the list of questions
-         audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
+        audio_path = generate_speech(formatted_questions, job_id,model_name,female_speaker_id)  # Assuming this needs the list of questions
+        #  audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
 
     print('job id',job_id)
     print('user id',user_id)
