@@ -95,7 +95,13 @@ def generate_speech(questions_text, job_id):
     os.makedirs(output_dir, exist_ok=True)
 
     # Load TTS model
-    # tts = TTS(model_name, progress_bar=False, gpu=torch.cuda.is_available())
+    try:
+        tts = TTS(model_name, progress_bar=False, gpu=torch.cuda.is_available())
+    except Exception as e:
+        print("Error: ", e)
+        print("PATH: ", os.environ['PATH'])
+        print("Espeak Test: ")
+        raise
 
     initial_silence = AudioSegment.silent(duration=3000)
 
@@ -105,8 +111,8 @@ def generate_speech(questions_text, job_id):
 
     # Generate and concatenate each question with a 5-second silence
     for question in questions_text:
-        tts = gTTS(text=question, lang='en')
-        # tts.tts_to_file(text=question, file_path=temporary_path, speaker=speaker_id)
+        # tts = gTTS(text=question, lang='en')
+        tts.tts_to_file(text=question, file_path=temporary_path, speaker=speaker_id)
         # Save the speech to a temporary file
         temporary_path = 'temp.wav'
         tts.save(temporary_path)
