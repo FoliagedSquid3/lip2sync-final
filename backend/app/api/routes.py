@@ -84,19 +84,17 @@ def convert_to_png(image: Image.Image, output_path):
     else:
         return None
     
-espeak_path = 'C:\\Program Files (x86)\\eSpeak\\command_line'
-os.environ['PATH'] += os.pathsep + espeak_path
-print("Updated PATH:", os.environ['PATH'])
-
-# Check if eSpeak is accessible
-try:
-    subprocess.run(["espeak", "--version"], check=True)
-    print("eSpeak is accessible")
-except subprocess.CalledProcessError:
-    print("eSpeak is not accessible")
-
 def generate_speech(questions_text, job_id, model_name, speaker_id=None):
+    espeak_path = 'C:\\Program Files (x86)\\eSpeak\\command_line\\espeak.exe'
 
+    # Using the subprocess module to call eSpeak directly with its full path
+    try:
+        subprocess.run([espeak_path, '--version'], check=True)
+        print("eSpeak is accessible and working.")
+    except subprocess.CalledProcessError:
+        print("Failed to access eSpeak.")
+
+        
     output_dir = output_audio_dir
     filename = f"{job_id}.wav"
     wav_path = os.path.join(output_dir, filename)
