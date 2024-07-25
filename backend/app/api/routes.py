@@ -84,17 +84,9 @@ def convert_to_png(image: Image.Image, output_path):
     else:
         return None
     
-def generate_speech(questions_text, job_id, model_name, speaker_id=None):
-    espeak_path = 'C:\\Program Files (x86)\\eSpeak\\command_line\\espeak.exe'
+# def generate_speech(questions_text, job_id, model_name, speaker_id=None):
+def generate_speech(questions_text, job_id):
 
-    # Using the subprocess module to call eSpeak directly with its full path
-    try:
-        subprocess.run([espeak_path, '--version'], check=True)
-        print("eSpeak is accessible and working.")
-    except subprocess.CalledProcessError:
-        print("Failed to access eSpeak.")
-
-        
     output_dir = output_audio_dir
     filename = f"{job_id}.wav"
     wav_path = os.path.join(output_dir, filename)
@@ -103,7 +95,7 @@ def generate_speech(questions_text, job_id, model_name, speaker_id=None):
     os.makedirs(output_dir, exist_ok=True)
 
     # Load TTS model
-    tts = TTS(model_name, progress_bar=False, gpu=torch.cuda.is_available())
+    # tts = TTS(model_name, progress_bar=False, gpu=torch.cuda.is_available())
 
     initial_silence = AudioSegment.silent(duration=3000)
 
@@ -113,8 +105,8 @@ def generate_speech(questions_text, job_id, model_name, speaker_id=None):
 
     # Generate and concatenate each question with a 5-second silence
     for question in questions_text:
-        # tts = gTTS(text=question, lang='en')
-        tts.tts_to_file(text=question, file_path=temporary_path, speaker=speaker_id)
+        tts = gTTS(text=question, lang='en')
+        # tts.tts_to_file(text=question, file_path=temporary_path, speaker=speaker_id)
         # Save the speech to a temporary file
         temporary_path = 'temp.wav'
         tts.save(temporary_path)
@@ -192,10 +184,12 @@ async def async_execute_script(result_dir, job_id, user_id):
 
     # Generate speech
     if gender=="Man":
-        audio_path = generate_speech(formatted_questions, job_id,model_name,male_speaker_id)  # Assuming this needs the list of questions
-        # audio_path = change_pitch(audio_path, -4)
+        # audio_path = generate_speech(formatted_questions, job_id,model_name,male_speaker_id)  # Assuming this needs the list of questions
+        audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
+        audio_path = change_pitch(audio_path, -4)
     else:
-        audio_path = generate_speech(formatted_questions, job_id,model_name,female_speaker_id)  # Assuming this needs the list of questions
+        # audio_path = generate_speech(formatted_questions, job_id,model_name,female_speaker_id)  # Assuming this needs the list of questions
+         audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
 
     print('job id',job_id)
     print('user id',user_id)
