@@ -25,6 +25,8 @@ from celery import shared_task
 import asyncio
 from requests import get
 import re
+from TTS.api import TTS
+import torch
 
 class SendVideo(BaseModel):
     user_id: int | str
@@ -80,10 +82,16 @@ def convert_to_png(image: Image.Image, output_path):
     else:
         return None
     
-def generate_speech(questions_text, job_id):
+def generate_speech(questions_text, job_id, model_name, speaker_id=None):
     output_dir = output_audio_dir
     filename = f"{job_id}.wav"
     wav_path = os.path.join(output_dir, filename)
+
+    # Ensure the output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Load TTS model
+    tts = TTS(model_name, progress_bar=False, gpu=torch.cuda.is_available())
 
     initial_silence = AudioSegment.silent(duration=3000)
 
@@ -93,9 +101,10 @@ def generate_speech(questions_text, job_id):
 
     # Generate and concatenate each question with a 5-second silence
     for question in questions_text:
-        tts = gTTS(text=question, lang='en')
+        # tts = gTTS(text=question, lang='en')
+        tts.tts_to_file(text=question, file_path=temporary_path, speaker=speaker_id)
         # Save the speech to a temporary file
-        temporary_path = 'temp.mp3'
+        temporary_path = 'temp.wav'
         tts.save(temporary_path)
         # Load this temporary file as an AudioSegment
         question_audio = AudioSegment.from_mp3(temporary_path)
@@ -164,12 +173,17 @@ async def async_execute_script(result_dir, job_id, user_id):
             gender=detect_gender_from_image(image_path)
         else:
             return {"error": "Failed to download or process avatarimage"}
+        
+    model_name = "tts_models/en/vctk/vits"
+    female_speaker_id = "p225"
+    male_speaker_id = "p226"  # Example speaker ID
+
     # Generate speech
     if gender=="Man":
-        audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
-        audio_path = change_pitch(audio_path, -4)
+        audio_path = generate_speech(formatted_questions, job_id,model_name,male_speaker_id)  # Assuming this needs the list of questions
+        # audio_path = change_pitch(audio_path, -4)
     else:
-        audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
+        audio_path = generate_speech(formatted_questions, job_id,model_name,female_speaker_id)  # Assuming this needs the list of questions
 
     print('job id',job_id)
     print('user id',user_id)
