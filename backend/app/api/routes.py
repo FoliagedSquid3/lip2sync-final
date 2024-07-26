@@ -348,7 +348,7 @@ async def fetch_job_details(job_id: int, user_id: int):
             job = response.json()
             avatar_img = job.get('avatar_img', '')
             voice = job.get('voice','')
-            auto_questions = int(job.get('auto_questions',0)),
+            auto_questions = int(job.get('auto_questions',0))
             limit_questions= int(job.get('limit_questions',0))
             print('auto questions',auto_questions)
             print('limit questions',limit_questions)
