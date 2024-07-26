@@ -348,8 +348,10 @@ async def fetch_job_details(job_id: int, user_id: int):
             job = response.json()
             avatar_img = job.get('avatar_img', '')
             voice = job.get('voice','')
-            auto_questions = job.get('auto_questions',''),
-            limit_questions= job.get('limit_questions','')
+            auto_questions = int(job.get('auto_questions',0)),
+            limit_questions= int(job.get('limit_questions',0))
+            print('auto questions',auto_questions)
+            print('limit questions',limit_questions)
             # Extracting applicant data and ensuring it includes the candidate's name
             applicant_data = next((applicant for applicant in job.get('applicants', []) if applicant['user']['id'] == user_id), None)
             if not applicant_data:
@@ -365,6 +367,7 @@ async def fetch_job_details(job_id: int, user_id: int):
             questions = [q.strip() for q in questions if q.strip()]
 
             if auto_questions == 1 :
+                print('auto questions detected')
                 detailed_questions = await fetch_additional_questions(questions,limit_questions)
                 questions.extend(detailed_questions) 
             
