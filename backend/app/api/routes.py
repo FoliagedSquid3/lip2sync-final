@@ -304,13 +304,13 @@ async def async_execute_script(result_dir, job_id, user_id):
 
 
 # Function to generate additional questions using OpenAI's API
-async def fetch_additional_questions(initial_questions):
+async def fetch_additional_questions(initial_questions, limit_questions):
     openai_api_key = os.getenv('OPENAI_KEY')
     openai.api_key = openai_api_key
-
+    print('limit_questions',limit_questions)
     try:
         # Updating the prompt to focus on generating advanced technical questions
-        prompt = "Given these initial interview questions about coding experience, create 5 direct, in-depth technical questions focusing on syntax, architecture, and best practices. Do not include question numbers in the text you generate.\n\n"
+        prompt = f"Given these initial interview questions about coding experience, create {limit_questions} direct, in-depth technical questions focusing on syntax, architecture, and best practices. Do not include question numbers in the text you generate.\n\n"
         for question in initial_questions:
             prompt += f"{question}\n"
 
@@ -363,8 +363,10 @@ async def fetch_job_details(job_id: int, user_id: int):
             if isinstance(questions, str):
                 questions = questions.strip('[]').replace('"', '').split(',')
             questions = [q.strip() for q in questions if q.strip()]
-            detailed_questions = await fetch_additional_questions(questions)
-            questions.extend(detailed_questions) 
+
+            if auto_questions == 1 :
+                detailed_questions = await fetch_additional_questions(questions,limit_questions)
+                questions.extend(detailed_questions) 
             
             introduction = job.get('introduction', '')
             # print('introduction',introduction)
