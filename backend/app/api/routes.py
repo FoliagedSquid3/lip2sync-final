@@ -163,12 +163,17 @@ async def async_execute_script(result_dir, job_id, user_id):
     questions = job_details['questions']
     candidate_name = job_details['candidate_name']
     interview_timestamp = job_details['interview_timestamp']
-
+    voice=job_details['voice']
+    auto_questions=job_details['auto_questions']
+    limit_questions=job_details['limit_questions']
     # Process data further...
     print('Avatar Image:', avatar_img)
     print('Timestamp:', interview_timestamp)
     print('Candidate Name:', candidate_name)
     print('Questions:', questions)
+    print('Voice', voice)
+    print('Auto Questions', auto_questions)
+    print('Limit Questions', limit_questions)
     
     formatted_questions = questions
     
@@ -185,19 +190,15 @@ async def async_execute_script(result_dir, job_id, user_id):
             return {"error": "Failed to download or process avatarimage"}
         
     model_name = "tts_models/en/vctk/vits"
-    female_speaker_id = "p225"
-    male_speaker_id = "p226"  # Example speaker ID
-    another_speaker_id='p234'
-    speaker='p227'
     print('x')
     # Generate speech
-    if gender=="Man":
-        audio_path = generate_speech(formatted_questions, job_id,model_name,male_speaker_id)  # Assuming this needs the list of questions
+    # if gender=="Man":
+    audio_path = generate_speech(formatted_questions, job_id,model_name,voice)  # Assuming this needs the list of questions
         # audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
-        audio_path = change_pitch(audio_path, -4)
-    else:
-        audio_path = generate_speech(formatted_questions, job_id,model_name,female_speaker_id)  # Assuming this needs the list of questions
-        #  audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
+        # audio_path = change_pitch(audio_path, -4)
+    # else:
+    #     audio_path = generate_speech(formatted_questions, job_id,model_name,female_speaker_id)  # Assuming this needs the list of questions
+    #     #  audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
 
     print('job id',job_id)
     print('user id',user_id)
@@ -389,6 +390,7 @@ async def fetch_job_details(job_id: int, user_id: int):
 async def get_job_details_endpoint(job_id: int, user_id: int):
     try:
         avatar_img, questions, interview_timestamp, candidate_name,voice,auto_questions,limit_questions = await fetch_job_details(job_id, user_id)
+        print('voice id',voice)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
