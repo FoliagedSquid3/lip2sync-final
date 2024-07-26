@@ -350,6 +350,11 @@ async def fetch_job_details(job_id: int, user_id: int):
             voice = job.get('voice','')
             auto_questions = int(job.get('auto_questions',0))
             limit_questions= int(job.get('limit_questions',0))
+            if isinstance(auto_questions, str):
+                # If the string looks like a tuple, handle it accordingly
+                auto_questions = int(auto_questions.strip('(),'))
+            else:
+                auto_questions = int(auto_questions)
             print('auto questions',auto_questions)
             print('limit questions',limit_questions)
             # Extracting applicant data and ensuring it includes the candidate's name
