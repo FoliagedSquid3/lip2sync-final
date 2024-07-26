@@ -187,7 +187,8 @@ async def async_execute_script(result_dir, job_id, user_id):
     model_name = "tts_models/en/vctk/vits"
     female_speaker_id = "p225"
     male_speaker_id = "p226"  # Example speaker ID
-
+    another_speaker_id='p234'
+    speaker='p227'
     print('x')
     # Generate speech
     if gender=="Man":
@@ -345,7 +346,9 @@ async def fetch_job_details(job_id: int, user_id: int):
             response.raise_for_status()
             job = response.json()
             avatar_img = job.get('avatar_img', '')
-            
+            voice = job.get('voice','')
+            auto_questions = job.get('auto_questions',''),
+            limit_questions= job.get('limit_questions','')
             # Extracting applicant data and ensuring it includes the candidate's name
             applicant_data = next((applicant for applicant in job.get('applicants', []) if applicant['user']['id'] == user_id), None)
             if not applicant_data:
@@ -375,7 +378,7 @@ async def fetch_job_details(job_id: int, user_id: int):
                 questions.append(ending_lines)
             print('questions',questions)
             # Return all relevant data
-            return avatar_img, questions, interview_timestamp, candidate_name
+            return avatar_img, questions, interview_timestamp, candidate_name, voice, auto_questions, limit_questions
         except httpx.HTTPError as e:
             raise HTTPException(status_code=e.response.status_code, detail=str(e))
         except Exception as e:
@@ -385,7 +388,7 @@ async def fetch_job_details(job_id: int, user_id: int):
 @router.get("/jobs/{job_id}/{user_id}")
 async def get_job_details_endpoint(job_id: int, user_id: int):
     try:
-        avatar_img, questions, interview_timestamp, candidate_name = await fetch_job_details(job_id, user_id)
+        avatar_img, questions, interview_timestamp, candidate_name,voice,auto_questions,limit_questions = await fetch_job_details(job_id, user_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -394,7 +397,10 @@ async def get_job_details_endpoint(job_id: int, user_id: int):
         "candidate_name": candidate_name,
         "interview_timestamp": interview_timestamp,
         "avatar_img": avatar_img,
-        "questions": questions
+        "questions": questions,
+        "voice": voice,
+        "auto_questions":auto_questions,
+        "limit_questions":limit_questions
     }
 
 
