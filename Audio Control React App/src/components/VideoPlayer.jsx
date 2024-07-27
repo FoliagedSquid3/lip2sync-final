@@ -10,6 +10,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
   const [recordedChunks, setRecordedChunks] = useState([]);
   const mediaRecorderRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [blob, setBlob] = useState(null); // State for the blob
 
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -53,9 +54,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
       video: { width: 320, height: 180, facingMode: "user" },
       audio: true,
     }).then(stream => {
-      mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: "video/webm"
-      });
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: "video/webm" });
       mediaRecorderRef.current.addEventListener("dataavailable", handleDataAvailable);
       mediaRecorderRef.current.start();
     }).catch(err => console.error("Error accessing webcam:", err));
@@ -63,25 +62,42 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
 
   const handleDataAvailable = useCallback(({ data }) => {
     if (data.size > 0) {
+      console.log("Received chunk of size:", data.size);
+
+
+      // Create a new blob from the received data
+      const newBlob = new Blob([data], { type: "video/webm" });
+
+      // Optionally update the recordedChunks if you need to accumulate chunks
       setRecordedChunks(prev => [...prev, data]);
+
+      // Set the blob state to the new blob
+      setBlob(newBlob);
+      setIsUploading(true);
+      
     }
   }, []);
 
   const handleUploadClick = useCallback(async () => {
-    mediaRecorderRef.current?.stop();
-    mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      //setIsUploading(true);
+    }
     setCapturing(false);
+    //setIsUploading(true);
 
-    const videoElement = document.getElementById("video");
-    videoElement && videoElement.pause(); // Ensure the video is paused
+    const videoElement = videoRef.current;
+    if (videoElement) {
+      videoElement.pause();
+      setIsPaused(true);
+    }
 
-    if (recordedChunks.length === 0) {
-      console.error("No recorded chunks to upload");
+    if (!blob) {
+      console.error("No recorded blob to upload");
       return;
     }
-    setIsUploading(true);
 
-    const blob = new Blob(recordedChunks, { type: "video/webm" });
     console.log("Uploading Blob size:", blob.size);
 
     try {
