@@ -47,6 +47,13 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
     }
   };
 
+  const handleDataAvailable = useCallback(({ data }) => {
+    if (data.size > 0) {
+      console.log(`data ka size --> ${data.size}`)
+      setRecordedChunks(prev => [...prev, data]);
+    }
+  }, []);
+
   const handleStartCaptureClick = useCallback(() => {
     setCapturing(true);
     navigator.mediaDevices.getUserMedia({
@@ -61,51 +68,53 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
     }).catch(err => console.error("Error accessing webcam:", err));
   }, []);
 
-  const handleDataAvailable = useCallback(({ data }) => {
-    if (data.size > 0) {
-      setRecordedChunks(prev => [...prev, data]);
-    }
-  }, []);
 
   const handleUploadClick = useCallback(async () => {
     mediaRecorderRef.current?.stop();
     mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
+
     setCapturing(false);
 
     const videoElement = document.getElementById("video");
     videoElement && videoElement.pause(); // Ensure the video is paused
+  }, []);
 
-    if (recordedChunks.length === 0) {
-      console.error("No recorded chunks to upload");
-      return;
-    }
-    setIsUploading(true);
-
-    const blob = new Blob(recordedChunks, { type: "video/webm" });
-    console.log("Uploading Blob size:", blob.size);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", blob, "recording.webm");
-      formData.append("job_id", jobId);
-      formData.append("user_id", userId);
-      formData.append("user_name", userName);
-
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/upload`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log("File uploaded successfully:", data.file_path);
-        window.location.href = `https://app.timetomeet.ai/meeting-finished/${jobId}/${userId}`;
-      } else {
-        throw new Error("Failed to upload file");
+  useEffect(() => {
+    async function fetchData() {
+      if (recordedChunks.length === 0) {
+        console.error("No recorded chunks to upload");
+        return;
       }
-    } catch (error) {
-      console.error("Error uploading file:", error);
+      setIsUploading(true);
+
+      const blob = new Blob(recordedChunks, { type: "video/webm" });
+      console.log("Uploading Blob size:", blob.size);
+
+      try {
+        const formData = new FormData();
+        formData.append("file", blob, "recording.webm");
+        formData.append("job_id", jobId);
+        formData.append("user_id", userId);
+        formData.append("user_name", userName);
+
+        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/upload`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log("File uploaded successfully:", data.file_path);
+          window.location.href = `https://app.timetomeet.ai/meeting-finished/${jobId}/${userId}`;
+        } else {
+          throw new Error("Failed to upload file");
+        }
+      } catch (error) {
+        console.error("Error uploading file:", error);
+      }
     }
+
+    fetchData();
   }, [recordedChunks, jobId, userId, userName]);
 
   useEffect(() => {
