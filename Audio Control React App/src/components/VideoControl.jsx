@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import VideoPlayer from "./VideoPlayer";
 import AudioCapture from "./AudioCapture";
-
 
 const fetchJobDetails = async (url) => {
   try {
@@ -65,25 +64,12 @@ const VideoControl = () => {
 
     const fetchVideo = async () => {
       try {
-        const response = await fetch(`${REACT_APP_API_URL}/send_video`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ user_id: userIdParam, job_id: jobIdParam })
-        });
-        if (!response.ok) {
-          throw new Error('Video not found');
-        }
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        setVideoSrc(url);
+        // Assuming the path is hardcoded
+        const hardcodedVideoPath = "/video.mp4";
+        setVideoSrc(hardcodedVideoPath);
         setIsLoading(false);
-        console.log(`video size ${blob.size}`)
-        console.log(`Video temp url ${url}`)
-        console.log("Response type:", blob.type); // This should log 'video/mp4'
       } catch (error) {
-        console.error('Error fetching video:', error);
+        console.error('Error setting video path:', error);
       }
     };
 
@@ -94,9 +80,7 @@ const VideoControl = () => {
     } else {
       navigate("/error");
     }
-
   }, [navigate, searchParams]);
-
 
   const [isPaused, setIsPaused] = useState(false);
   const [volume, setVolume] = useState(0.0);
@@ -108,9 +92,7 @@ const VideoControl = () => {
   const handleVoiceDetected = (isVoiceDetected) => {
     const videoElement = document.getElementById("video");
     if (!disableVideo) {
-      // console.log(`Voice detected: ${isVoiceDetected}, Video paused: ${isPaused}`);
       if (isVoiceDetected && !isPaused) {
-        // console.log("Pausing video due to voice detection");
         videoElement.pause();
         setIsPaused(true);
       } else if (!isVoiceDetected && isPaused) {
@@ -136,9 +118,8 @@ const VideoControl = () => {
 
   const handleUploadButtonClick = () => {
     console.log("Upload button clicked. Navigating to thank you page.");
-    const redirectUrl = `https://app.timetomeet.ai/meeting-finished/${jobId}/${userId}`;
+    const redirectUrl = `http://app.timetomeet.ai/meeting-finished/${jobId}/${userId}`;
     window.location.href = redirectUrl; // Redirect to the external URL
-    // navigate("/thankyou");
   };
 
   return (
@@ -149,18 +130,20 @@ const VideoControl = () => {
         </h2>
         {isLoading && (
           <div className="flex flex-col justify-center items-center min-h-screen">
-          <div className="animate-spin rounded-full border-t-transparent border-solid border-blue-500 border-8 h-16 w-16"></div>  {/* Loader */}
-          <p className="text-black font-bold text-lg mt-4">Please wait, the recruiter will be joining shortly...</p>  {/* Larger text displayed below the loader */}
-        </div>
+            <div className="animate-spin rounded-full border-t-transparent border-solid border-blue-500 border-8 h-16 w-16"></div>
+            <p className="text-black font-bold text-lg mt-4">Please wait, the recruiter will be joining shortly...</p>
+          </div>
         )}
-        <VideoPlayer
-          videoSrc={videoSrc}
-          onVideoEnd={handleVideoEnd}
-          disable={disableVideo}
-          jobId={jobId}
-          userId={userId}
-          userName={userName}
-        />
+        {!isLoading && (
+          <VideoPlayer
+            videoSrc={videoSrc}
+            onVideoEnd={handleVideoEnd}
+            disable={disableVideo}
+            jobId={jobId}
+            userId={userId}
+            userName={userName}
+          />
+        )}
       </div>
       <AudioCapture
         onVoiceDetected={handleVoiceDetected}

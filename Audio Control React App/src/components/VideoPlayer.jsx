@@ -8,23 +8,9 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
   const [isPaused, setIsPaused] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [recordedChunks, setRecordedChunks] = useState([]);
+  const [blob, setBlob] = useState(null); // State for the blob
   const mediaRecorderRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
-
-  useEffect(() => {
-    const videoElement = videoRef.current;
-
-    if (!videoElement) return;
-
-    const handleEnded = () => {
-      console.log("Video playback ended");
-      onVideoEnd && onVideoEnd();
-      videoElement.pause();
-    };
-
-    videoElement.addEventListener("ended", handleEnded);
-    return () => videoElement.removeEventListener("ended", handleEnded);
-  }, [onVideoEnd]);
 
   const handleMute = () => {
     const { current } = videoRef;
@@ -53,9 +39,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
       video: { width: 320, height: 180, facingMode: "user" },
       audio: true,
     }).then(stream => {
-      mediaRecorderRef.current = new MediaRecorder(stream, {
-        mimeType: "video/webm"
-      });
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: "video/webm" });
       mediaRecorderRef.current.addEventListener("dataavailable", handleDataAvailable);
       mediaRecorderRef.current.start();
     }).catch(err => console.error("Error accessing webcam:", err));
@@ -63,26 +47,46 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
 
   const handleDataAvailable = useCallback(({ data }) => {
     if (data.size > 0) {
+      console.log("Received chunk of size:", data.size);
+
+
+      // Create a new blob from the received data
+      const newBlob = new Blob([data], { type: "video/webm" });
+
+      // Optionally update the recordedChunks if you need to accumulate chunks
       setRecordedChunks(prev => [...prev, data]);
+
+      // Set the blob state to the new blob
+      setBlob(newBlob);
+      setIsUploading(true);
+      
     }
   }, []);
 
   const handleUploadClick = useCallback(async () => {
-    mediaRecorderRef.current?.stop();
-    mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      //setIsUploading(true);
+    }
     setCapturing(false);
+    //setIsUploading(true);
 
-    const videoElement = document.getElementById("video");
-    videoElement && videoElement.pause(); // Ensure the video is paused
+    const videoElement = videoRef.current;
+    if (videoElement) {
+      videoElement.pause();
+      setIsPaused(true);
+    }
 
-    if (recordedChunks.length === 0) {
-      console.error("No recorded chunks to upload");
+    if (!blob) {
+      console.error("No recorded blob to upload");
       return;
     }
-    setIsUploading(true);
 
-    const blob = new Blob(recordedChunks, { type: "video/webm" });
+    
+
     console.log("Uploading Blob size:", blob.size);
+    
 
     try {
       const formData = new FormData();
@@ -97,6 +101,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
       });
 
       if (response.ok) {
+        
         const data = await response.json();
         console.log("File uploaded successfully:", data.file_path);
         window.location.href = `https://app.timetomeet.ai/meeting-finished/${jobId}/${userId}`;
@@ -106,11 +111,13 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
     } catch (error) {
       console.error("Error uploading file:", error);
     }
-  }, [recordedChunks, jobId, userId, userName]);
+  }, [blob, jobId, userId, userName]);
 
   useEffect(() => {
     handleStartCaptureClick();
-    return () => mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
+    return () => {
+      mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
+    };
   }, [handleStartCaptureClick]);
 
   return (
@@ -122,16 +129,17 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
       ) : (
         <>
           <div className="flex justify-center items-center w-full">
-            {videoSrc && <video
-              ref={videoRef}
-              id="video"
-              className="w-full h-auto"
-              autoPlay
-              style={{ maxWidth: '60vw', maxHeight: '100vh' }}
-            >
-              <source src={videoSrc} type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>}
+            {videoSrc && (
+              <video
+                ref={videoRef}
+                id="video"
+                className="w-full h-auto"
+                autoPlay
+                style={{ maxWidth: '60vw', maxHeight: '100vh' }}
+              >
+                <source src={videoSrc} type="video/mp4" />
+              </video>
+            )}
           </div>
           <div className="flex justify-between mt-4 space-x-4">
             <button onClick={handleMute} className="bg-gray-100 hover:bg-gray-300 text-black font-bold py-2 px-4 rounded">
