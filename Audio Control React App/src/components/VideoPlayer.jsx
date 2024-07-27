@@ -1,9 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faVolumeMute, faVolumeUp, faPause, faPlay, faUpload } from '@fortawesome/free-solid-svg-icons';
-import WebcamStreamCapture from './WebcamStreamCapture';
-import AudioCapture from './AudioCapture';
-
 
 const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
   const videoRef = useRef(null);
@@ -13,11 +10,6 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
   const [recordedChunks, setRecordedChunks] = useState([]);
   const mediaRecorderRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
-
-  // Stop functions stored in refs
-  const stopWebcamFunction = useRef(null);
-  const stopMicFunction = useRef(null);
-
 
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -79,10 +71,6 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
     mediaRecorderRef.current?.stop();
     mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
     setCapturing(false);
-    if (stopWebcamFunction.current) stopWebcamFunction.current();
-    if (stopMicFunction.current) stopMicFunction.current();
-    // Redirect or other cleanup here
-    console.log("Leaving meeting and stopping all media.");
 
     const videoElement = document.getElementById("video");
     videoElement && videoElement.pause(); // Ensure the video is paused
