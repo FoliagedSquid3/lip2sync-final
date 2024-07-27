@@ -260,11 +260,25 @@ async def review_recording(job_id: int, user_id: int):
     print('filename',filename)
     frontend_base_url=os.getenv('FRONTEND_BASE_URL')
     print('frontend base url',frontend_base_url)
+
+    base_original_path = os.getenv('ORIGINAL_FILE_PATH')
+    original_filepath = os.path.join(base_original_path, str(job_id), f"{user_id}.mp4")
+
+    public_dir = os.getenv('PUBLIC_DIR')
+    public_filepath = os.path.join(public_dir, str(job_id), str(user_id) + ".mp4")
+    os.makedirs(os.path.dirname(public_filepath), exist_ok=True)
+    shutil.copy(original_filepath, public_filepath)
+
     #public_url = f"{os.getenv('FRONTEND_BASE_URL')}/media/{filename}"
     public_url=f"https://interview.timetomeet.ai/media/{filename}"
+    meeting_url=f"https://interview.timetomeet.ai/media/{job_id}/{user_id}.mp4"
     print('public_url',public_url)
+    print('meeting_url',meeting_url)
+
+
     return {
         "transcript": transcript,
         "analysis": analysis,
-        "download_url": public_url
+        "download_url": public_url,
+        "meeting_url": meeting_url
     }
