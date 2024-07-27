@@ -1,11 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import Webcam from "react-webcam";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
-const WebcamStreamCapture = ({ onRecordingComplete }) => {
+const WebcamStreamCapture = ({ onRecordingComplete, setStopFunction }) => {
   const navigate = useNavigate();
-
-
 
   const webcamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -31,33 +29,32 @@ const WebcamStreamCapture = ({ onRecordingComplete }) => {
 
   const handleStartCaptureClick = useCallback(() => {
     setCapturing(true);
-    navigator.mediaDevices
-      .getUserMedia({
-        video: videoConstraints,
-        audio: true,
-      })
-      .then((stream) => {
-        webcamRef.current.srcObject = stream;
-        mediaRecorderRef.current = new MediaRecorder(stream, {
-          mimeType: "video/webm",
-        });
-        mediaRecorderRef.current.addEventListener("dataavailable", handleDataAvailable);
-        mediaRecorderRef.current.start();
-
-        const id = setInterval(() => {
-          const blob = new Blob(recordedChunks, { type: "video/webm" });
-          // console.log("Current Blob size:", blob.size);
-        }, 1000);
-        setIntervalId(id);
-      })
-      .catch((err) => {
-        console.error("Error accessing webcam:", err);
+    navigator.mediaDevices.getUserMedia({
+      video: videoConstraints,
+      audio: true,
+    }).then(stream => {
+      webcamRef.current.srcObject = stream;
+      mediaRecorderRef.current = new MediaRecorder(stream, {
+        mimeType: "video/webm",
       });
+      mediaRecorderRef.current.addEventListener("dataavailable", handleDataAvailable);
+      mediaRecorderRef.current.start();
+
+      const id = setInterval(() => {
+        if (recordedChunks.length > 0) {
+          const blob = new Blob(recordedChunks, { type: "video/webm" });
+          console.log("Current Blob size:", blob.size);
+        }
+      }, 1000);
+      setIntervalId(id);
+    }).catch(err => {
+      console.error("Error accessing webcam:", err);
+    });
   }, [recordedChunks]);
 
   const handleDataAvailable = useCallback(({ data }) => {
     if (data.size > 0) {
-      setRecordedChunks((prev) => [...prev, data]);
+      setRecordedChunks(prev => [...prev, data]);
     }
   }, []);
 
@@ -70,49 +67,10 @@ const WebcamStreamCapture = ({ onRecordingComplete }) => {
     }
   }, []);
 
-  const handleUploadClick = useCallback(async () => {
-    handleStopCaptureClick();
-
-    if (recordedChunks.length === 0) {
-      console.error("No recorded chunks to upload");
-      return;
-    }
-
-    const blob = new Blob(recordedChunks, { type: "video/webm" });
-    console.log("Uploading Blob size:", blob.size);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", blob, "recording.webm");
-      formData.append("job_id", 2);
-      formData.append("user_name", "Pathan");
-
-      const response = await fetch("http://127.0.0.1/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log("File uploaded successfully:", data.file_path);
-        if (onRecordingComplete) {
-          onRecordingComplete(blob);
-        }
-        navigate("/thankyou");
-      } else {
-        throw new Error("Failed to upload file");
-      }
-    } catch (error) {
-      console.error("Error uploading file:", error);
-    }
-  }, [recordedChunks, onRecordingComplete, navigate]);
-
+  // Use useEffect to call setStopFunction with handleStopCaptureClick
   useEffect(() => {
-    if (isRecordingComplete && recordedChunks.length > 0) {
-      const blob = new Blob(recordedChunks, { type: "video/webm" });
-      console.log("Final Blob size:", blob.size);
-    }
-  }, [isRecordingComplete, recordedChunks]);
+    setStopFunction(handleStopCaptureClick);
+  }, [handleStopCaptureClick, setStopFunction]);
 
   return (
     <div className="flex flex-col items-center justify-center h-full">

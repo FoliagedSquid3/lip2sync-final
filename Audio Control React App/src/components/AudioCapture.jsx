@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 
-const AudioCapture = ({ onVoiceDetected, setVolume, threshold }) => {
+const AudioCapture = ({ onVoiceDetected, setVolume, threshold, setStopFunction }) => {
   const [analyser, setAnalyser] = useState(null);
   const [dataArray, setDataArray] = useState(null);
+  const streamRef = useRef(null);  // Reference to hold the media stream
 
   useEffect(() => {
     const initAudio = async () => {
@@ -10,8 +11,8 @@ const AudioCapture = ({ onVoiceDetected, setVolume, threshold }) => {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
         });
-        const audioCtx = new (window.AudioContext ||
-          window.webkitAudioContext)();
+        streamRef.current = stream;  // Store the stream in the ref
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const analyser = audioCtx.createAnalyser();
         const source = audioCtx.createMediaStreamSource(stream);
         source.connect(analyser);
@@ -21,13 +22,19 @@ const AudioCapture = ({ onVoiceDetected, setVolume, threshold }) => {
 
         setAnalyser(analyser);
         setDataArray(dataArray);
+
+        // Set the stop function to be called from the parent component
+        setStopFunction(() => {
+          stream.getTracks().forEach(track => track.stop());
+          audioCtx.close();
+        });
       } catch (err) {
         console.error("Error accessing microphone", err);
       }
     };
 
     initAudio();
-  }, []);
+  }, [setStopFunction]);
 
   useEffect(() => {
     let intervalId;
@@ -48,9 +55,10 @@ const AudioCapture = ({ onVoiceDetected, setVolume, threshold }) => {
       intervalId = setInterval(detectVoice, 250);
     }
 
-    // Cleanup function to clear interval
-    return () => clearInterval(intervalId);
-  }, [analyser, dataArray, onVoiceDetected, threshold]);
+    return () => {
+      clearInterval(intervalId);  // Cleanup interval
+    };
+  }, [analyser, dataArray, onVoiceDetected, setVolume, threshold]);
 
   return <div className="hidden">Audio Capture Active</div>;
 };
