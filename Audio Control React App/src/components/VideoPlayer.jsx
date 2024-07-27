@@ -67,10 +67,10 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-      //setIsUploading(true);
+      setIsUploading(true);
     }
     setCapturing(false);
-    //setIsUploading(true);
+    setIsUploading(true);
 
     const videoElement = videoRef.current;
     if (videoElement) {
