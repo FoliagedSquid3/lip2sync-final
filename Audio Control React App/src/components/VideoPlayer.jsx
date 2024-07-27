@@ -68,50 +68,53 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
   }, []);
 
   const handleUploadClick = useCallback(async () => {
-    mediaRecorderRef.current?.stop();
-    mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
-    setCapturing(false);
-
-    const videoElement = document.getElementById("video");
-    videoElement && videoElement.pause(); // Ensure the video is paused
-
-    if (recordedChunks.length === 0) {
-      console.error("No recorded chunks to upload");
-      return;
-    }
-    setIsUploading(true);
-
-    const blob = new Blob(recordedChunks, { type: "video/webm" });
-    console.log("Uploading Blob size:", blob.size);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", blob, "recording.webm");
-      formData.append("job_id", jobId);
-      formData.append("user_id", userId);
-      formData.append("user_name", userName);
-
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/upload`, {
-        method: "POST",
-        body: formData,
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      // Stop recording and handle cleanup
+      mediaRecorderRef.current.addEventListener('stop', async () => {
+        // Ensure all tracks are stopped
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+        setCapturing(false);
+  
+        if (recordedChunks.length === 0) {
+          console.error("No recorded chunks to upload");
+          return;
+        }
+        setIsUploading(true);
+  
+        const blob = new Blob(recordedChunks, { type: "video/webm" });
+        console.log("Uploading Blob size:", blob.size);
+  
+        try {
+          const formData = new FormData();
+          formData.append("file", blob, "recording.webm");
+          formData.append("job_id", jobId);
+          formData.append("user_id", userId);
+          formData.append("user_name", userName);
+  
+          const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/upload`, {
+            method: "POST",
+            body: formData,
+          });
+  
+          if (response.ok) {
+            const data = await response.json();
+            console.log("File uploaded successfully:", data.file_path);
+            window.location.href = `https://app.timetomeet.ai/meeting-finished/${jobId}/${userId}`;
+          } else {
+            throw new Error("Failed to upload file");
+          }
+        } catch (error) {
+          console.error("Error uploading file:", error);
+        } finally {
+          setIsUploading(false);
+        }
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log("File uploaded successfully:", data.file_path);
-        window.location.href = `https://app.timetomeet.ai/meeting-finished/${jobId}/${userId}`;
-      } else {
-        throw new Error("Failed to upload file");
-      }
-    } catch (error) {
-      console.error("Error uploading file:", error);
+  
+      mediaRecorderRef.current.stop(); // This triggers the 'stop' event
+    } else {
+      console.error("Recorder is inactive or not initialized.");
     }
   }, [recordedChunks, jobId, userId, userName]);
-
-  useEffect(() => {
-    handleStartCaptureClick();
-    return () => mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
-  }, [handleStartCaptureClick]);
 
   return (
     <div className="flex flex-col items-center justify-center">
