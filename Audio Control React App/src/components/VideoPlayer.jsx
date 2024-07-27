@@ -1,20 +1,19 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faVolumeMute, faVolumeUp, faUpload } from '@fortawesome/free-solid-svg-icons';
+import { faVolumeMute, faVolumeUp, faPause, faPlay, faUpload } from '@fortawesome/free-solid-svg-icons';
 
 const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
   const videoRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
-  const [isPaused, setIsPaused] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [recordedChunks, setRecordedChunks] = useState([]);
   const mediaRecorderRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [blob, setBlob] = useState(null);
-  const [readyToUpload, setReadyToUpload] = useState(false);
 
   useEffect(() => {
     const videoElement = videoRef.current;
+
     if (!videoElement) return;
 
     const handleEnded = () => {
@@ -35,13 +34,28 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
     }
   };
 
+  const handlePause = () => {
+    const { current } = videoRef;
+    if (current) {
+      if (current.paused) {
+        current.play();
+        setIsPaused(false);
+      } else {
+        current.pause();
+        setIsPaused(true);
+      }
+    }
+  };
+
   const handleStartCaptureClick = useCallback(() => {
     setCapturing(true);
     navigator.mediaDevices.getUserMedia({
       video: { width: 320, height: 180, facingMode: "user" },
       audio: true,
     }).then(stream => {
-      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: "video/webm" });
+      mediaRecorderRef.current = new MediaRecorder(stream, {
+        mimeType: "video/webm"
+      });
       mediaRecorderRef.current.addEventListener("dataavailable", handleDataAvailable);
       mediaRecorderRef.current.start();
     }).catch(err => console.error("Error accessing webcam:", err));
@@ -53,26 +67,21 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
     }
   }, []);
 
-  const handleStopRecording = useCallback(() => {
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-      mediaRecorderRef.current.addEventListener('stop', () => {
-        setBlob(new Blob(recordedChunks, { type: "video/webm" }));
-        setReadyToUpload(true);
-      });
-      setCapturing(false);
-    }
-  }, [recordedChunks]);
-
   const handleUploadClick = useCallback(async () => {
-    setIsUploading(true);
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
+    setCapturing(false);
 
-    if (!blob) {
-      console.error("No recorded blob to upload");
+    const videoElement = document.getElementById("video");
+    videoElement && videoElement.pause(); // Ensure the video is paused
+
+    if (recordedChunks.length === 0) {
+      console.error("No recorded chunks to upload");
       return;
     }
+    setIsUploading(true);
 
+    const blob = new Blob(recordedChunks, { type: "video/webm" });
     console.log("Uploading Blob size:", blob.size);
 
     try {
@@ -97,7 +106,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
     } catch (error) {
       console.error("Error uploading file:", error);
     }
-  }, [blob, jobId, userId, userName]);
+  }, [recordedChunks, jobId, userId, userName]);
 
   useEffect(() => {
     handleStartCaptureClick();
@@ -129,7 +138,11 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
               <FontAwesomeIcon icon={isMuted ? faVolumeUp : faVolumeMute} className="mr-2" />
               {isMuted ? "Unmute" : "Mute"}
             </button>
-            <button disabled={!readyToUpload} onClick={handleUploadClick} className="bg-red-300 hover:bg-red-400 text-black font-bold py-2 px-4 rounded">
+            {/* <button onClick={handlePause} className="bg-gray-100 hover:bg-gray-300 text-black font-bold py-2 px-4 rounded">
+              <FontAwesomeIcon icon={isPaused ? faPlay : faPause} className="mr-2" />
+              {isPaused ? "Play" : "Pause"}
+            </button> */}
+            <button onClick={handleUploadClick} className="bg-red-300 hover:bg-red-400 text-black font-bold py-2 px-4 rounded">
               <FontAwesomeIcon icon={faUpload} className="mr-2" />
               Leave Meeting
             </button>
