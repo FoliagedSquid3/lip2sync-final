@@ -77,6 +77,38 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
 
     const videoElement = document.getElementById("video");
     videoElement && videoElement.pause(); // Ensure the video is paused
+    // if (recordedChunks.length === 0) {
+    //   console.error("No recorded chunks to upload");
+    //   return;
+    // }
+    // console.log("Uploading recorded chunks:", recordedChunks.length);
+    // setIsUploading(true);
+
+    // const blob = new Blob(recordedChunks, { type: "video/webm" });
+    // console.log("Uploading Blob size:", blob.size);
+
+    // try {
+    //   const formData = new FormData();
+    //   formData.append("file", blob, "recording.webm");
+    //   formData.append("job_id", jobId);
+    //   formData.append("user_id", userId);
+    //   formData.append("user_name", userName);
+
+    //   const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/upload`, {
+    //     method: "POST",
+    //     body: formData,
+    //   });
+
+    //   if (response.ok) {
+    //     const data = await response.json();
+    //     console.log("File uploaded successfully:", data.file_path);
+    //     window.location.href = `https://app.timetomeet.ai/meeting-finished/${jobId}/${userId}`;
+    //   } else {
+    //     throw new Error("Failed to upload file");
+    //   }
+    // } catch (error) {
+    //   console.error("Error uploading file:", error);
+    // }
   }, []);
 
   useEffect(() => {
@@ -86,7 +118,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
         return;
       }
       setIsUploading(true);
-
+      console.log("Uploading recorded chunks:", recordedChunks.length);
       const blob = new Blob(recordedChunks, { type: "video/webm" });
       console.log("Uploading Blob size:", blob.size);
 
@@ -115,7 +147,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
     }
 
     fetchData();
-  }, [recordedChunks, jobId, userId, userName]);
+  }, [recordedChunks, jobId, userId, userName, handleDataAvailable]);
 
   useEffect(() => {
     handleStartCaptureClick();
