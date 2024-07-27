@@ -11,6 +11,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
   const mediaRecorderRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [blob, setBlob] = useState(null);
+  const [readyToUpload, setReadyToUpload] = useState(false);
 
   useEffect(() => {
     const videoElement = videoRef.current;
@@ -48,17 +49,24 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
 
   const handleDataAvailable = useCallback(({ data }) => {
     if (data.size > 0) {
-      setRecordedChunks(prev => [...prev, data]); // Optionally update the recordedChunks
-      setBlob(new Blob(recordedChunks, { type: "video/webm" })); // Update the blob here with all chunks
+      setRecordedChunks(prev => [...prev, data]);
+    }
+  }, []);
+
+  const handleStopRecording = useCallback(() => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      mediaRecorderRef.current.addEventListener('stop', () => {
+        setBlob(new Blob(recordedChunks, { type: "video/webm" }));
+        setReadyToUpload(true);
+      });
+      setCapturing(false);
     }
   }, [recordedChunks]);
 
   const handleUploadClick = useCallback(async () => {
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-      setCapturing(false);
-    }
+    setIsUploading(true);
 
     if (!blob) {
       console.error("No recorded blob to upload");
@@ -121,7 +129,7 @@ const VideoPlayer = ({ videoSrc, onVideoEnd, jobId, userId, userName }) => {
               <FontAwesomeIcon icon={isMuted ? faVolumeUp : faVolumeMute} className="mr-2" />
               {isMuted ? "Unmute" : "Mute"}
             </button>
-            <button onClick={handleUploadClick} className="bg-red-300 hover:bg-red-400 text-black font-bold py-2 px-4 rounded">
+            <button disabled={!readyToUpload} onClick={handleUploadClick} className="bg-red-300 hover:bg-red-400 text-black font-bold py-2 px-4 rounded">
               <FontAwesomeIcon icon={faUpload} className="mr-2" />
               Leave Meeting
             </button>
