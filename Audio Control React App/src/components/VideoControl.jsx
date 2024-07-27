@@ -11,23 +11,8 @@ const fetchJobDetails = async (url) => {
       throw new Error(`Failed to retrieve data: ${response.status}`);
     }
     const data = await response.json(); // Parse the JSON response
-    const jobs = data.data || []; // Extract the list of jobs
-
-    // Initialize an array to store names
-    const names = [];
-
-    // Iterate through each job to get the applicants' names
-    jobs.forEach((job) => {
-      const applicants = job.applicants || [];
-      applicants.forEach((applicant) => {
-        const name = applicant.user.name;
-        if (name) {
-          names.push(name); // Add the name to the array if it exists
-        }
-      });
-    });
-
-    return names; // Return the array of names
+    const name = data.candidate_name
+    return name;
   } catch (error) {
     console.error("Error fetching job details:", error);
     return []; // Return an empty array if there's an error
@@ -54,8 +39,8 @@ const VideoControl = () => {
 
     const fetchData = async () => {
       try {
-        const names = await fetchJobDetails(apiUrl); // Call the fetchJobDetails function
-        const fetchedUserName = names.length > 0 ? names[0] : 'Unknown'; // Assuming the first name is the user's name
+        const names = await fetchJobDetails(`${apiUrl}/${jobIdParam}/${userIdParam}`); // Call the fetchJobDetails function
+        const fetchedUserName = names ? names : 'Unknown';
         setUserName(fetchedUserName); // Set the fetched username
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -149,9 +134,9 @@ const VideoControl = () => {
         </h2>
         {isLoading && (
           <div className="flex flex-col justify-center items-center min-h-screen">
-          <div className="animate-spin rounded-full border-t-transparent border-solid border-blue-500 border-8 h-16 w-16"></div>  {/* Loader */}
-          <p className="text-black font-bold text-lg mt-4">Please wait, the recruiter will be joining shortly...</p>  {/* Larger text displayed below the loader */}
-        </div>
+            <div className="animate-spin rounded-full border-t-transparent border-solid border-blue-500 border-8 h-16 w-16"></div>  {/* Loader */}
+            <p className="text-black font-bold text-lg mt-4">Please wait, the recruiter will be joining shortly...</p>  {/* Larger text displayed below the loader */}
+          </div>
         )}
         <VideoPlayer
           videoSrc={videoSrc}
