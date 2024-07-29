@@ -359,6 +359,7 @@ async def fetch_job_details(job_id: int, user_id: int):
             job = response.json()
             avatar_img = job.get('avatar_img', '')
             voice = job.get('voice','')
+            language = job.get('language')
             auto_questions = int(job.get('auto_questions',0))
             limit_questions= int(job.get('limit_questions',0))
             if isinstance(auto_questions, str):
@@ -405,7 +406,7 @@ async def fetch_job_details(job_id: int, user_id: int):
 
 
             # Return all relevant data
-            return avatar_img, questions, interview_timestamp, candidate_name, voice, auto_questions, limit_questions
+            return avatar_img, questions, interview_timestamp, candidate_name, voice, auto_questions, limit_questions, language
         except httpx.HTTPError as e:
             raise HTTPException(status_code=e.response.status_code, detail=str(e))
         except Exception as e:
@@ -415,7 +416,7 @@ async def fetch_job_details(job_id: int, user_id: int):
 @router.get("/jobs/{job_id}/{user_id}")
 async def get_job_details_endpoint(job_id: int, user_id: int):
     try:
-        avatar_img, questions, interview_timestamp, candidate_name,voice,auto_questions,limit_questions = await fetch_job_details(job_id, user_id)
+        avatar_img, questions, interview_timestamp, candidate_name,voice,auto_questions,limit_questions, language = await fetch_job_details(job_id, user_id)
         print('voice id',voice)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -428,7 +429,8 @@ async def get_job_details_endpoint(job_id: int, user_id: int):
         "questions": questions,
         "voice": voice,
         "auto_questions":auto_questions,
-        "limit_questions":limit_questions
+        "limit_questions":limit_questions,
+        "language": language
     }
 
 
