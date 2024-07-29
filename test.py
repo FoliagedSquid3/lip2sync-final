@@ -1,10 +1,4 @@
-import torch
-
-if torch.cuda.is_available():
-    print("CUDA is available")
-    # Get the number of CUDA devices
-    print(f"Number of CUDA devices: {torch.cuda.device_count()}")
-    # Get CUDA device name
-    print(f"CUDA Device Name: {torch.cuda.get_device_name(0)}")
-else:
-    print("CUDA is not available")
+from deep_translator import GoogleTranslator
+to_translate = 'I want to translate this text'
+translated = GoogleTranslator(source='auto', target='ru').translate(to_translate)
+print('translated', translated)

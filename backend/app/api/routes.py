@@ -28,6 +28,7 @@ import re
 from TTS.api import TTS
 import torch
 import random
+from deep_translator import GoogleTranslator
 
 
 
@@ -84,6 +85,18 @@ def convert_to_png(image: Image.Image, output_path):
         return output_path
     else:
         return None
+    
+def translate_text(text, target_language='es'):
+    """Translate text to the target language."""
+    translator = GoogleTranslator(source='auto', target=target_language)
+    translated_text = translator.translate(text)
+    return translated_text
+
+def translate_text(text, target_language='ru'):
+    """Translate text to the target language."""
+    translator = GoogleTranslator(source='auto', target=target_language)
+    translated_text = translator.translate(text)
+    return translated_text
     
 def generate_speech(questions_text, job_id, model_name, speaker_id=None):
 # def generate_speech(questions_text, job_id):
@@ -143,6 +156,7 @@ def generate_speech_spanish(questions_text, job_id):
 
     for question in questions_text:
         temporary_path = 'temp.wav'
+        # translated_question = translate_text(question, 'es')
         tts = gTTS(text=question, lang='es')
         tts.save(temporary_path)
         
@@ -165,7 +179,8 @@ def generate_speech_russian(questions_text, job_id):
 
     for question in questions_text:
         temporary_path = 'temp.wav'
-        tts = gTTS(text=question, lang='ru')
+        translated_question = translate_text(question, 'ru')
+        tts = gTTS(text=translated_question, lang='ru')
         tts.save(temporary_path)
         
         question_audio = AudioSegment.from_file(temporary_path)
