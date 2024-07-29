@@ -98,6 +98,7 @@ def generate_speech(questions_text, job_id, model_name, speaker_id=None):
     # Load TTS model
     try:
         tts = TTS(model_name, progress_bar=False, gpu=torch.cuda.is_available())
+
     except Exception as e:
         print("Error: ", e)
         print("PATH: ", os.environ['PATH'])
@@ -115,7 +116,6 @@ def generate_speech(questions_text, job_id, model_name, speaker_id=None):
         temporary_path = 'temp.wav'
         # tts = gTTS(text=question, lang='en')
         tts.tts_to_file(text=question, file_path=temporary_path, speaker=speaker_id)
-        # Save the speech to a temporary file
         
         # Load this temporary file as an AudioSegment
         question_audio = AudioSegment.from_mp3(temporary_path)
@@ -129,6 +129,54 @@ def generate_speech(questions_text, job_id, model_name, speaker_id=None):
     # Export the combined audio to the final WAV file
     combined.export(wav_path, format='wav')
 
+    return wav_path
+
+def generate_speech_spanish(questions_text, job_id):
+    output_dir = output_audio_dir
+    filename = f"{job_id}.wav"
+    wav_path = os.path.join(output_dir, filename)
+    os.makedirs(output_dir, exist_ok=True)
+
+    tts = gTTS(lang='es')
+    
+    initial_silence = AudioSegment.silent(duration=3000)
+    silence = AudioSegment.silent(duration=1000)
+    combined = initial_silence
+
+    for question in questions_text:
+        temporary_path = 'temp.wav'
+        tts.text = question
+        tts.save(temporary_path)
+        
+        question_audio = AudioSegment.from_file(temporary_path)
+        combined += question_audio + silence
+        os.remove(temporary_path)
+
+    combined.export(wav_path, format='wav')
+    return wav_path
+
+def generate_speech_russian(questions_text, job_id):
+    output_dir = output_audio_dir
+    filename = f"{job_id}.wav"
+    wav_path = os.path.join(output_dir, filename)
+    os.makedirs(output_dir, exist_ok=True)
+
+    tts = gTTS(lang='ru')
+    
+    initial_silence = AudioSegment.silent(duration=3000)
+    silence = AudioSegment.silent(duration=1000)
+    combined = initial_silence
+
+    for question in questions_text:
+        temporary_path = 'temp.wav'
+        tts.text = question
+        tts.save(temporary_path)
+        
+        question_audio = AudioSegment.from_file(temporary_path)
+        combined += question_audio + silence
+        os.remove(temporary_path)
+
+    combined.export(wav_path, format='wav')
     return wav_path
 
 def change_pitch(audio_path, semitones):
@@ -167,6 +215,7 @@ async def async_execute_script(result_dir, job_id, user_id):
     voice=job_details['voice']
     auto_questions=job_details['auto_questions']
     limit_questions=job_details['limit_questions']
+    language=job_details['language']
     # Process data further...
     print('Avatar Image:', avatar_img)
     print('Timestamp:', interview_timestamp)
@@ -175,7 +224,7 @@ async def async_execute_script(result_dir, job_id, user_id):
     print('Voice', voice)
     print('Auto Questions', auto_questions)
     print('Limit Questions', limit_questions)
-    
+    print('language',language)
     formatted_questions = questions
     
     # Continue with additional processing if needed
@@ -194,7 +243,16 @@ async def async_execute_script(result_dir, job_id, user_id):
     print('x')
     # Generate speech
     # if gender=="Man":
-    audio_path = generate_speech(formatted_questions, job_id,model_name,voice)  # Assuming this needs the list of questions
+    if language == 'en':
+        audio_path = generate_speech(formatted_questions, job_id,model_name,voice)  # Assuming this needs the list of questions
+    elif language == 'es':
+        audio_path = generate_speech_spanish(questions, job_id)
+    elif language == 'ru':
+        audio_path = generate_speech_russian(questions, job_id)
+    else:
+        return {"error": "Unsupported language"}
+    print('Generated audio path:', audio_path)
+    
         # audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
         # audio_path = change_pitch(audio_path, -4)
     # else:
