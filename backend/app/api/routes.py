@@ -137,15 +137,13 @@ def generate_speech_spanish(questions_text, job_id):
     wav_path = os.path.join(output_dir, filename)
     os.makedirs(output_dir, exist_ok=True)
 
-    tts = gTTS(lang='es')
-    
     initial_silence = AudioSegment.silent(duration=3000)
     silence = AudioSegment.silent(duration=1000)
     combined = initial_silence
 
     for question in questions_text:
         temporary_path = 'temp.wav'
-        tts.text = question
+        tts = gTTS(text=question, lang='es')
         tts.save(temporary_path)
         
         question_audio = AudioSegment.from_file(temporary_path)
@@ -160,8 +158,6 @@ def generate_speech_russian(questions_text, job_id):
     filename = f"{job_id}.wav"
     wav_path = os.path.join(output_dir, filename)
     os.makedirs(output_dir, exist_ok=True)
-
-    tts = gTTS(lang='ru')
     
     initial_silence = AudioSegment.silent(duration=3000)
     silence = AudioSegment.silent(duration=1000)
@@ -169,7 +165,7 @@ def generate_speech_russian(questions_text, job_id):
 
     for question in questions_text:
         temporary_path = 'temp.wav'
-        tts.text = question
+        tts = gTTS(text=question, lang='ru')
         tts.save(temporary_path)
         
         question_audio = AudioSegment.from_file(temporary_path)
@@ -252,7 +248,7 @@ async def async_execute_script(result_dir, job_id, user_id):
     else:
         return {"error": "Unsupported language"}
     print('Generated audio path:', audio_path)
-    
+
         # audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
         # audio_path = change_pitch(audio_path, -4)
     # else:
