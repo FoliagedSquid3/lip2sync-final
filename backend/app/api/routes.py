@@ -144,7 +144,7 @@ def generate_speech(questions_text, job_id, model_name, speaker_id=None):
 
     return wav_path
 
-def generate_speech_spanish(questions_text, job_id):
+def generate_speech_spanish(questions_text, job_id, gender=None):
     output_dir = output_audio_dir
     filename = f"{job_id}.wav"
     wav_path = os.path.join(output_dir, filename)
@@ -165,9 +165,13 @@ def generate_speech_spanish(questions_text, job_id):
         os.remove(temporary_path)
 
     combined.export(wav_path, format='wav')
+
+    if gender == "Man":
+        wav_path = change_pitch(wav_path, -4)
+        
     return wav_path
 
-def generate_speech_russian(questions_text, job_id):
+def generate_speech_russian(questions_text, job_id, gender=None):
     output_dir = output_audio_dir
     filename = f"{job_id}.wav"
     wav_path = os.path.join(output_dir, filename)
@@ -188,6 +192,10 @@ def generate_speech_russian(questions_text, job_id):
         os.remove(temporary_path)
 
     combined.export(wav_path, format='wav')
+
+    if gender == "Man":
+        wav_path = change_pitch(wav_path, -4)
+
     return wav_path
 
 def change_pitch(audio_path, semitones):
@@ -257,9 +265,9 @@ async def async_execute_script(result_dir, job_id, user_id):
     if language == 'en':
         audio_path = generate_speech(formatted_questions, job_id,model_name,voice)  # Assuming this needs the list of questions
     elif language == 'es':
-        audio_path = generate_speech_spanish(questions, job_id)
+        audio_path = generate_speech_spanish(questions, job_id, gender)
     elif language == 'ru':
-        audio_path = generate_speech_russian(questions, job_id)
+        audio_path = generate_speech_russian(questions, job_id, gender)
     else:
         return {"error": "Unsupported language"}
     print('Generated audio path:', audio_path)
