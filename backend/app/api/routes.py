@@ -168,7 +168,7 @@ def generate_speech_spanish(questions_text, job_id, gender=None):
 
     if gender == "Man":
         wav_path = change_pitch(wav_path, -4)
-        
+
     return wav_path
 
 def generate_speech_russian(questions_text, job_id, gender=None):
@@ -266,7 +266,7 @@ async def async_execute_script(result_dir, job_id, user_id):
         audio_path = generate_speech(formatted_questions, job_id,model_name,voice)  # Assuming this needs the list of questions
     elif language == 'es':
         audio_path = generate_speech_spanish(questions, job_id, gender)
-    elif language == 'ru':
+    elif language == 'rs':
         audio_path = generate_speech_russian(questions, job_id, gender)
     else:
         return {"error": "Unsupported language"}
