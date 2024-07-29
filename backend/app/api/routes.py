@@ -27,6 +27,7 @@ from requests import get
 import re
 from TTS.api import TTS
 import torch
+import random
 
 
 
@@ -340,6 +341,16 @@ async def fetch_additional_questions(initial_questions, limit_questions):
         return []
 
 
+def integrate_expressions(questions, expressions, frequency=0.3):
+    augmented_questions = []
+    for question in questions:
+        augmented_questions.append(question)
+        if random.random() < frequency:
+            # Randomly choose an expression to insert
+            expression = random.choice(expressions)
+            augmented_questions.append(expression)
+    return augmented_questions
+
 async def fetch_job_details(job_id: int, user_id: int):
     async with httpx.AsyncClient() as client:
         try:
@@ -375,6 +386,9 @@ async def fetch_job_details(job_id: int, user_id: int):
                 print('auto questions detected')
                 detailed_questions = await fetch_additional_questions(questions,limit_questions)
                 questions.extend(detailed_questions) 
+
+            expressions = ["Hope you're finding this interesting!", "Let's move on to the next topic.", "Are you comfortable with the pace?",  "Thank you for sharing that.",  "Interesting point!", "Let's dive a bit deeper into this topic."]
+            questions = integrate_expressions(questions, expressions)
             
             introduction = job.get('introduction', '')
             # print('introduction',introduction)
@@ -388,6 +402,8 @@ async def fetch_job_details(job_id: int, user_id: int):
             if ending_lines:
                 questions.append(ending_lines)
             print('questions',questions)
+
+
             # Return all relevant data
             return avatar_img, questions, interview_timestamp, candidate_name, voice, auto_questions, limit_questions
         except httpx.HTTPError as e:
