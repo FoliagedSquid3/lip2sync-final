@@ -36,7 +36,6 @@ os.makedirs(RECORDING_DIR, exist_ok=True)
 @shared_task
 def process_video(file_location, job_id, user_id, output_filename,user_name):
     output_filename = file_location.replace('.webm', '.mp4')
-    print('in queue')
     try:
         ffmpeg.input(file_location).output(output_filename, vcodec='libx264', acodec='aac', strict='experimental').run(overwrite_output=True)
         os.remove(file_location)  # Remove the original .webm file after conversion
@@ -44,7 +43,6 @@ def process_video(file_location, job_id, user_id, output_filename,user_name):
         print('Error converting file:', e)
 
     loop = asyncio.get_event_loop()
-    print('loop',loop)
     if loop.is_closed():
         print("Event loop is closed, creating a new one")
         loop = asyncio.new_event_loop()
@@ -65,11 +63,6 @@ def process_video(file_location, job_id, user_id, output_filename,user_name):
     # Assuming transcription and analysis functions are defined elsewhere
     transcript = transcribe_audio(file_path)
     analysis = analyze_answers(transcript,questions)
-    print('transcript',transcript)
-    print('analysis',analysis)
-    print('job id',job_id)
-    print('user id',user_id)
-    print('recording',output_filename)
 
     db = SessionLocal()
     # query = jobs.insert().values(
@@ -99,12 +92,10 @@ def process_video(file_location, job_id, user_id, output_filename,user_name):
     }
 )
 
-    print("Preparing to insert data into the database.")
     try:
         # db.execute(query)
         db.execute(on_conflict_query)
         db.commit()
-        print("Data inserted successfully.")
     except Exception as e:
         print("Exception during database operation:", e)
         db.rollback()  # Rollback in case of an issue
@@ -112,11 +103,10 @@ def process_video(file_location, job_id, user_id, output_filename,user_name):
     finally:
         db.close()  # Close the session
 
-    api_url = f"https://app.timetomeet.ai/fetch-meeting/{job_id}/{user_id}"
-    print('api_url',api_url)
+    # api_url = f"https://app.timetomeet.ai/fetch-meeting/{job_id}/{user_id}"
+    api_url = f"os.getenv('API_URL_2/{job_id}/{user_id}"
     try:
         response = get(api_url)
-        print('response',response)
         response.raise_for_status()  # will raise an exception for HTTP error codes
     except Exception as e:
         print(f"Failed to notify API: {e}")
@@ -227,8 +217,6 @@ PUBLIC_DIR = os.getenv('PUBLIC_DIR')  # Ensure this environment variable is set 
 def copy_to_public(filename: str) -> str:
     src_path = Path(RECORDING_DIR) / filename
     dest_path = Path(PUBLIC_DIR) / filename
-    print('src path',src_path)
-    print('dest path',dest_path)
     try:
         shutil.copyfile(src_path, dest_path)
         print(f"File copied from {src_path} to {dest_path}")
@@ -257,9 +245,7 @@ async def review_recording(job_id: int, user_id: int):
     analysis = json.loads(result['analysis'])  # Convert JSON string back to dictionary
 
     filename = f"{job_id}_{user_id}.mp4"
-    print('filename',filename)
     frontend_base_url=os.getenv('FRONTEND_BASE_URL')
-    print('frontend base url',frontend_base_url)
 
     base_original_path = os.getenv('ORIGINAL_FILE_PATH')
     original_filepath = os.path.join(base_original_path, str(job_id), f"{user_id}.mp4")
@@ -272,8 +258,6 @@ async def review_recording(job_id: int, user_id: int):
     #public_url = f"{os.getenv('FRONTEND_BASE_URL')}/media/{filename}"
     public_url=f"https://interview.timetomeet.ai/media/{filename}"
     meeting_url=f"https://interview.timetomeet.ai/media/{job_id}/{user_id}.mp4"
-    print('public_url',public_url)
-    print('meeting_url',meeting_url)
 
 
     return {

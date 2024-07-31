@@ -48,7 +48,6 @@ images_dir=os.getenv('IMAGES_DIR')
 @router.post("/execute-task/")
 def execute_task():
     task = celery.send_task('backend.app.api.routes.my_task')
-    print('taslk',task)
     return {"message": "Task submitted!", "task_id": task.id}
 
 
@@ -60,7 +59,6 @@ def download_image(image_url):
         response.raise_for_status()  # Ensure the request succeeded
         return Image.open(BytesIO(response.content))
     except requests.RequestException as e:
-        print(f"Failed to download image from {image_url}, error: {e}")
         return None
 
 def detect_gender_from_image(image):
@@ -75,7 +73,6 @@ def detect_gender_from_image(image):
         return dominant_gender
     
     except Exception as e:
-        print(f"Failed to detect gender, error: {e}")
         return "Gender detection failed."
 
 
@@ -92,7 +89,7 @@ def translate_text(text, target_language='es'):
     translated_text = translator.translate(text)
     return translated_text
 
-def translate_text(text, target_language='ru'):
+def translate_text(text, target_language='fr'):
     """Translate text to the target language."""
     translator = GoogleTranslator(source='auto', target=target_language)
     translated_text = translator.translate(text)
@@ -114,8 +111,6 @@ def generate_speech(questions_text, job_id, model_name, speaker_id=None):
 
     except Exception as e:
         print("Error: ", e)
-        print("PATH: ", os.environ['PATH'])
-        print("Espeak Test: ")
         raise
 
     initial_silence = AudioSegment.silent(duration=3000)
@@ -167,11 +162,11 @@ def generate_speech_spanish(questions_text, job_id, gender=None):
     combined.export(wav_path, format='wav')
 
     if gender == "Man":
-        wav_path = change_pitch(wav_path, -4)
+        wav_path = change_pitch(wav_path, -8)
 
     return wav_path
 
-def generate_speech_russian(questions_text, job_id, gender=None):
+def generate_speech_french(questions_text, job_id, gender=None):
     output_dir = output_audio_dir
     filename = f"{job_id}.wav"
     wav_path = os.path.join(output_dir, filename)
@@ -183,8 +178,8 @@ def generate_speech_russian(questions_text, job_id, gender=None):
 
     for question in questions_text:
         temporary_path = 'temp.wav'
-        translated_question = translate_text(question, 'ru')
-        tts = gTTS(text=translated_question, lang='ru')
+        translated_question = translate_text(question, 'fr')
+        tts = gTTS(text=translated_question, lang='fr')
         tts.save(temporary_path)
         
         question_audio = AudioSegment.from_file(temporary_path)
@@ -202,25 +197,27 @@ def change_pitch(audio_path, semitones):
     audio = AudioSegment.from_file(audio_path)
     new_sample_rate = int(audio.frame_rate * (2.0 ** (semitones / 12.0)))
     changed_audio = audio._spawn(audio.raw_data, overrides={'frame_rate': new_sample_rate}).set_frame_rate(44100)
-    changed_audio.export(audio_path, format="wav")  # Overwrite the original file with modified pitch
+    if semitones < 0:
+        # Compensate for the duration change to maintain original speed
+        speed_factor = 2.0 ** (-semitones / 12.0)  # Inverse of the pitch change factor
+        adjusted_audio = changed_audio.set_frame_rate(44100).speedup(playback_speed=speed_factor)
+    else:
+        adjusted_audio = changed_audio.set_frame_rate(44100)
+        
+    adjusted_audio.export(audio_path, format="wav")  # Overwrite the original file
     return audio_path 
 
 @shared_task
 def execute_script(result_dir, job_id, user_id):
-    print("Starting script execution...")
     try:
         loop = asyncio.get_event_loop()
-        print('loop',loop)
         if loop.is_closed():
             loop = asyncio.new_event_loop()
-            print('loop',loop)
             asyncio.set_event_loop(loop)
         result = loop.run_until_complete(async_execute_script(result_dir, job_id, user_id))
-        print('result',result)
         return result
     finally:
         loop.close()
-        print("Event loop closed.")
 
 async def async_execute_script(result_dir, job_id, user_id):
     job_details = await get_job_details_endpoint(job_id, user_id)
@@ -236,14 +233,6 @@ async def async_execute_script(result_dir, job_id, user_id):
     limit_questions=job_details['limit_questions']
     language=job_details['language']
     # Process data further...
-    print('Avatar Image:', avatar_img)
-    print('Timestamp:', interview_timestamp)
-    print('Candidate Name:', candidate_name)
-    print('Questions:', questions)
-    print('Voice', voice)
-    print('Auto Questions', auto_questions)
-    print('Limit Questions', limit_questions)
-    print('language',language)
     formatted_questions = questions
     
     # Continue with additional processing if needed
@@ -259,15 +248,14 @@ async def async_execute_script(result_dir, job_id, user_id):
             return {"error": "Failed to download or process avatarimage"}
         
     model_name = "tts_models/en/vctk/vits"
-    print('x')
     # Generate speech
     # if gender=="Man":
     if language == 'en':
         audio_path = generate_speech(formatted_questions, job_id,model_name,voice)  # Assuming this needs the list of questions
     elif language == 'es':
         audio_path = generate_speech_spanish(questions, job_id, gender)
-    elif language == 'rs':
-        audio_path = generate_speech_russian(questions, job_id, gender)
+    elif language == 'fr':
+        audio_path = generate_speech_french(questions, job_id, gender)
     else:
         return {"error": "Unsupported language"}
     print('Generated audio path:', audio_path)
@@ -278,13 +266,9 @@ async def async_execute_script(result_dir, job_id, user_id):
     #     audio_path = generate_speech(formatted_questions, job_id,model_name,female_speaker_id)  # Assuming this needs the list of questions
     #     #  audio_path = generate_speech(formatted_questions, job_id)  # Assuming this needs the list of questions
 
-    print('job id',job_id)
-    print('user id',user_id)
     # Construct the full path to the inference script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    print('script dir',script_dir)
     inference_script_path = os.path.join(script_dir, 'SadTalker', 'inference.py')
-    print('inference',inference_script_path)
 
     if not os.path.exists(inference_script_path):
         raise FileNotFoundError(f"The specified script does not exist: {inference_script_path}")
@@ -295,7 +279,6 @@ async def async_execute_script(result_dir, job_id, user_id):
 
     temp_output = os.path.join(result_dir, "temp")
     os.makedirs(job_output_dir, exist_ok=True)
-    print("****"*10)
     print("temp output dir ", temp_output)
     # Build the command
     command = [
@@ -310,20 +293,15 @@ async def async_execute_script(result_dir, job_id, user_id):
     result_dir = str(result_dir)  # Ensure result_dir is a string
     job_id = str(job_id)         # Ensure job_id is a string
     user_id = str(user_id)    
-    print('user id',user_id)
     subprocess.run(command, check=True)
 
-    print("Script execution successful.")
     generated_video_path = glob.glob(os.path.join(temp_output, '*.mp4'))[0]
-    print('src video path',generated_video_path)
    # New file path with user_id
     new_video_path = os.path.join(job_output_dir, f"{user_id}.mp4")
-    print('dest video path', new_video_path)
 
     # Rename the video
     shutil.move(generated_video_path, new_video_path)
     print('New generated video path:', new_video_path)
-    print('trying to resolve encoding timing')
     temp_video_path = os.path.join(result_dir, job_id, f"temp_{user_id}.mp4")
 
     # FFmpeg command for encoding
@@ -342,18 +320,16 @@ async def async_execute_script(result_dir, job_id, user_id):
     shutil.move(temp_video_path, new_video_path)
     print(f"Video path (overwritten) after encoding: {new_video_path}")
 
-    api_url = f"https://app.timetomeet.ai/complete-schedule-meeting/{job_id}/{user_id}"
-    print('api_url',api_url)
+    # api_url = f"https://app.timetomeet.ai/complete-schedule-meeting/{job_id}/{user_id}"
+    api_url = f"os.getenv('API_URL/{job_id}/{user_id}"
     try:
         response = get(api_url)
-        print('responsee',response)
         response.raise_for_status()  # will raise an exception for HTTP error codes
     except Exception as e:
         print(f"Failed to notify API: {e}")
         return {"message": f"Failed to notify API: {e}", "status": "failed"}
 
     try:
-        print('x')
         return {
     "status": "success",
     "message": "Script execution completed successfully.",
@@ -385,10 +361,9 @@ async def async_execute_script(result_dir, job_id, user_id):
 async def fetch_additional_questions(initial_questions, limit_questions):
     openai_api_key = os.getenv('OPENAI_KEY')
     openai.api_key = openai_api_key
-    print('limit_questions',limit_questions)
     try:
         # Updating the prompt to focus on generating advanced technical questions
-        prompt = f"Given these initial interview questions about coding experience, create {limit_questions} direct, in-depth technical questions focusing on syntax, architecture, and best practices. Do not include question numbers in the text you generate.\n\n"
+        prompt = f"Given these initial interview questions, create {limit_questions} direct, in-depth technical questions focusing on syntax, architecture, and best practices. Do not include question numbers in the text you generate.\n\n"
         for question in initial_questions:
             prompt += f"{question}\n"
 
@@ -444,8 +419,6 @@ async def fetch_job_details(job_id: int, user_id: int):
                 auto_questions = int(auto_questions.strip('(),'))
             else:
                 auto_questions = int(auto_questions)
-            print('auto questions',auto_questions)
-            print('limit questions',limit_questions)
             # Extracting applicant data and ensuring it includes the candidate's name
             applicant_data = next((applicant for applicant in job.get('applicants', []) if applicant['user']['id'] == user_id), None)
             if not applicant_data:
@@ -455,13 +428,11 @@ async def fetch_job_details(job_id: int, user_id: int):
             interview_timestamp = applicant_data.get('interview_timestamp')
             
             questions = job.get('questions', [])  # Parsing questions list
-            print('questions',questions)
             if isinstance(questions, str):
                 questions = questions.strip('[]').replace('"', '').split(',')
             questions = [q.strip() for q in questions if q.strip()]
 
             if auto_questions == 1 :
-                print('auto questions detected')
                 detailed_questions = await fetch_additional_questions(questions,limit_questions)
                 questions.extend(detailed_questions) 
 
@@ -469,9 +440,7 @@ async def fetch_job_details(job_id: int, user_id: int):
             questions = integrate_expressions(questions, expressions)
             
             introduction = job.get('introduction', '')
-            # print('introduction',introduction)
             ending_lines = job.get('ending_lines', '')
-            # print('ending lines',ending_lines)
 
 
             if introduction:
@@ -479,7 +448,6 @@ async def fetch_job_details(job_id: int, user_id: int):
 
             if ending_lines:
                 questions.append(ending_lines)
-            print('questions',questions)
 
 
             # Return all relevant data
@@ -494,7 +462,6 @@ async def fetch_job_details(job_id: int, user_id: int):
 async def get_job_details_endpoint(job_id: int, user_id: int):
     try:
         avatar_img, questions, interview_timestamp, candidate_name,voice,auto_questions,limit_questions, language = await fetch_job_details(job_id, user_id)
-        print('voice id',voice)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -520,12 +487,10 @@ async def process_complete_job(background_tasks: BackgroundTasks,job_id: int, us
 
     # background_tasks.add_task(execute_script, result_dir, job_id, user_id)
     task = execute_script.delay(result_dir, job_id, user_id)
-    print(f'Task {task.id} scheduled')
 
 
     # Assuming the video is now saved in `result_dir`
     
-    print('video url',meeting_url)
      # Return the video and meeting URL immediately
     return {
         "message": "Video processing started, please check the meeting URL later for the result.",
@@ -538,29 +503,6 @@ async def send_video(request: SendVideo):
         job_id = str(request.job_id)
         user_id = str(request.user_id) + ".mp4"
         video_path = os.path.join(result_dir, job_id, user_id)
-        
-        # Temporary path for the encoded video
-        # temp_video_path = os.path.join(result_dir, job_id, f"temp_{user_id}")
-        
-        # # FFmpeg command for encoding
-        # command = [
-        #     'ffmpeg',
-        #     '-i', video_path,  # Input file
-        #     '-c:v', 'libx264',  # Video codec to H.264
-        #     '-c:a', 'aac',      # Audio codec to AAC
-        #     '-strict', 'experimental',  # Allow experimental codecs for compatibility
-        #     '-b:a', '192k',     # Audio bitrate
-        #     '-y',               # Overwrite output files without asking
-        #     temp_video_path     # Output to temporary file
-        # ]
-
-        # # Execute the FFmpeg command
-        # subprocess.run(command, check=True)
-
-        # # If encoding is successful, replace the original file with the encoded one
-        # shutil.move(temp_video_path, video_path)  # This will overwrite the original file
-
-        print(f"Video path (overwritten): {video_path}")
         return FileResponse(video_path, media_type='video/mp4')
     except subprocess.CalledProcessError as e:
         print(f"Error during video encoding: {str(e)}")
