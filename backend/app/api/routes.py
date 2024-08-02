@@ -322,7 +322,9 @@ async def async_execute_script(result_dir, job_id, user_id):
     print(f"Video path (overwritten) after encoding: {new_video_path}")
 
     # api_url = f"https://app.timetomeet.ai/complete-schedule-meeting/{job_id}/{user_id}"
-    api_url = f"os.getenv('API_URL/{job_id}/{user_id}"
+    api_url=os.getenv('API_URL')
+    print('api_url', api_url)
+    api_url = f"{api_url}/{job_id}/{user_id}"
     try:
         response = get(api_url)
         response.raise_for_status()  # will raise an exception for HTTP error codes

@@ -104,7 +104,9 @@ def process_video(file_location, job_id, user_id, output_filename,user_name):
         db.close()  # Close the session
 
     # api_url = f"https://app.timetomeet.ai/fetch-meeting/{job_id}/{user_id}"
-    api_url = f"os.getenv('API_URL_2/{job_id}/{user_id}"
+    api_url=os.getenv('API_URL_2')
+    print('api url 2',api_url)
+    api_url = f"{api_url}/{job_id}/{user_id}"
     try:
         response = get(api_url)
         response.raise_for_status()  # will raise an exception for HTTP error codes
