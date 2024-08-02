@@ -139,7 +139,7 @@ def generate_speech(questions_text, job_id, model_name, speaker_id=None):
 
     return wav_path
 
-def generate_speech_spanish(questions_text, job_id, gender=None, accent=None):
+def generate_speech_spanish(questions_text, job_id, gender=None, voice=None):
     output_dir = output_audio_dir
     filename = f"{job_id}.wav"
     wav_path = os.path.join(output_dir, filename)
@@ -152,7 +152,7 @@ def generate_speech_spanish(questions_text, job_id, gender=None, accent=None):
     for question in questions_text:
         temporary_path = 'temp.wav'
         translated_question = translate_text(question, 'es')
-        tts = gTTS(text=translated_question, lang='es', tld=accent)
+        tts = gTTS(text=translated_question, lang='es', tld=voice)
         tts.save(temporary_path)
         
         question_audio = AudioSegment.from_file(temporary_path)
@@ -166,7 +166,7 @@ def generate_speech_spanish(questions_text, job_id, gender=None, accent=None):
 
     return wav_path
 
-def generate_speech_french(questions_text, job_id, gender=None, accent=None):
+def generate_speech_french(questions_text, job_id, gender=None, voice=None):
     output_dir = output_audio_dir
     filename = f"{job_id}.wav"
     wav_path = os.path.join(output_dir, filename)
@@ -179,7 +179,7 @@ def generate_speech_french(questions_text, job_id, gender=None, accent=None):
     for question in questions_text:
         temporary_path = 'temp.wav'
         translated_question = translate_text(question, 'fr')
-        tts = gTTS(text=translated_question, lang='fr', tld=accent)
+        tts = gTTS(text=translated_question, lang='fr', tld=voice)
         tts.save(temporary_path)
         
         question_audio = AudioSegment.from_file(temporary_path)
@@ -229,6 +229,7 @@ async def async_execute_script(result_dir, job_id, user_id):
     candidate_name = job_details['candidate_name']
     interview_timestamp = job_details['interview_timestamp']
     voice=job_details['voice']
+    print('voice',voice)
     auto_questions=job_details['auto_questions']
     limit_questions=job_details['limit_questions']
     language=job_details['language']
@@ -253,9 +254,9 @@ async def async_execute_script(result_dir, job_id, user_id):
     if language == 'en':
         audio_path = generate_speech(formatted_questions, job_id,model_name,voice)  # Assuming this needs the list of questions
     elif language == 'es':
-        audio_path = generate_speech_spanish(questions, job_id, gender)
+        audio_path = generate_speech_spanish(questions, job_id, gender, voice)
     elif language == 'fr':
-        audio_path = generate_speech_french(questions, job_id, gender)
+        audio_path = generate_speech_french(questions, job_id, gender, voice)
     else:
         return {"error": "Unsupported language"}
     print('Generated audio path:', audio_path)
