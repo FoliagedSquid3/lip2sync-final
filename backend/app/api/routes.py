@@ -139,7 +139,7 @@ def generate_speech(questions_text, job_id, model_name, speaker_id=None):
 
     return wav_path
 
-def generate_speech_spanish(questions_text, job_id, gender=None):
+def generate_speech_spanish(questions_text, job_id, gender=None, accent=None):
     output_dir = output_audio_dir
     filename = f"{job_id}.wav"
     wav_path = os.path.join(output_dir, filename)
@@ -151,8 +151,8 @@ def generate_speech_spanish(questions_text, job_id, gender=None):
 
     for question in questions_text:
         temporary_path = 'temp.wav'
-        # translated_question = translate_text(question, 'es')
-        tts = gTTS(text=question, lang='es')
+        translated_question = translate_text(question, 'es')
+        tts = gTTS(text=translated_question, lang='es', tld=accent)
         tts.save(temporary_path)
         
         question_audio = AudioSegment.from_file(temporary_path)
@@ -166,7 +166,7 @@ def generate_speech_spanish(questions_text, job_id, gender=None):
 
     return wav_path
 
-def generate_speech_french(questions_text, job_id, gender=None):
+def generate_speech_french(questions_text, job_id, gender=None, accent=None):
     output_dir = output_audio_dir
     filename = f"{job_id}.wav"
     wav_path = os.path.join(output_dir, filename)
@@ -179,7 +179,7 @@ def generate_speech_french(questions_text, job_id, gender=None):
     for question in questions_text:
         temporary_path = 'temp.wav'
         translated_question = translate_text(question, 'fr')
-        tts = gTTS(text=translated_question, lang='fr')
+        tts = gTTS(text=translated_question, lang='fr', tld=accent)
         tts.save(temporary_path)
         
         question_audio = AudioSegment.from_file(temporary_path)
@@ -474,7 +474,7 @@ async def get_job_details_endpoint(job_id: int, user_id: int):
         "voice": voice,
         "auto_questions":auto_questions,
         "limit_questions":limit_questions,
-        "language": language
+        "language": language,
     }
 
 
