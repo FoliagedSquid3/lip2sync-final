@@ -188,6 +188,11 @@ def generate_speech_french(questions_text, job_id, gender=None, voice=None):
 
     combined.export(wav_path, format='wav')
 
+    if voice.startswith('fr-') or voice.startswith('fr-n'):
+        pitch_change = float(voice[3:])  # Extract the numerical part after 'fr-'
+        print('pitch change',pitch_change)
+        wav_path = change_pitch(wav_path, pitch_change)
+
     if gender == "Man":
         wav_path = change_pitch(wav_path, -4)
 
